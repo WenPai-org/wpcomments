@@ -1,0 +1,25 @@
+# Copyright (C) 2024 WPComments
+# This file is distributed under the same license as the WPComments package.
+msgid ""
+msgstr ""
+"Project-Id-Version: WPComments 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wpcomments\n"
+"POT-Creation-Date: 2024-01-01 00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: wpcomments.php:378
+msgid "Comments are closed."
+msgstr ""
+
+#: wpcomments.php:90
+msgid "Enable Comments"
+msgstr ""
+
+#: wpcomments.php:91
+msgid "Allow comments on this site"
+msgstr ""
