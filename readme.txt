@@ -11,7 +11,20 @@ WPComments everywhere in WordPress.
 
 ## Description
 
-Activate this plugin to immediately remove all comment functionality from WordPress.
+WPComments is a comprehensive WordPress plugin that completely disables comments functionality across your entire WordPress site. It provides a clean and efficient way to remove all comment-related features without affecting your site's performance.
+
+**Key Features:**
+
+* Complete comment system disable
+* REST API comment endpoint protection
+* XML-RPC comment method blocking
+* Dashboard comment widget removal
+* Block editor comment blocks removal
+* Multisite network support with site-level control
+* Internationalization ready
+* No configuration required - works out of the box
+
+**What it does:**
 
 * Stop comments and pingbacks on all existing and future content.
 * Remove "Discussion" from Settings in the admin menu.
@@ -25,6 +38,28 @@ Activate this plugin to immediately remove all comment functionality from WordPr
 No configuration necessary (or available).
 
 If you find something we missed, [please let us know](https://github.com/WenPai-org/wpcomments)!
+
+## Installation
+
+1. Upload the plugin files to the `/wp-content/plugins/wpcomments` directory, or install the plugin through the WordPress plugins screen directly.
+2. Activate the plugin through the 'Plugins' screen in WordPress
+3. The plugin works automatically - no configuration needed!
+
+For multisite installations, network administrators can control comment settings at the site level through Network Admin > Settings > General.
+
+## Frequently Asked Questions
+
+### Does this plugin require any configuration?
+
+No! The plugin works automatically once activated. For multisite installations, network administrators have additional control options.
+
+### Will this affect my existing comments?
+
+No, existing comments remain in your database. The plugin simply prevents new comments and hides comment-related interface elements.
+
+### Is this compatible with multisite?
+
+Yes! Network administrators can control comment settings for individual sites through the network admin interface.
 
 ## Changelog
 
