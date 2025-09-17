@@ -1,0 +1,57 @@
+label.error {
+    display: block;
+    font-size: 14px;
+    color: #E15757;
+    margin-top: 5px;
+}
+
+input.error, textarea.error {
+    border: 1px solid #E15757;
+}
+
+input[type="text"].error:focus, 
+input[type="email"].error:focus, 
+input[type="url"].error:focus,
+input[type="password"].error:focus, 
+input[type="search"].error:focus, 
+input[type="number"].error:focus,
+input[type="tel"].error:focus, 
+input[type="range"].error:focus, 
+input[type="date"].error:focus,
+input[type="month"].error:focus, 
+input[type="week"].error:focus, 
+input[type="time"].error:focus, 
+input[type="datetime"].error:focus,
+input[type="datetime-local"].error:focus, 
+input[type="color"].error:focus, 
+textarea.error:focus {
+    color: #495057;
+    background-color: #fff;
+    border-color: #E15757;
+    outline: 0;
+    -webkit-box-shadow: 0 0 0 0.2rem rgba(217, 43, 34, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(217, 43, 34, 0.25);
+}
+
+.wpcomments-validation-admin .card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.wpcomments-validation-admin .card h2 {
+    margin-top: 0;
+    color: #1d2327;
+}
+
+.wpcomments-validation-admin .card ul {
+    list-style-type: disc;
+    margin-left: 20px;
+}
+
+.wpcomments-validation-admin .card li {
+    margin-bottom: 8px;
+}

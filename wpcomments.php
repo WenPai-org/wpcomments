@@ -8,234 +8,299 @@
  * Author URI:   https://wpcomments.com
  * Text Domain:  wpcomments
  * Requires PHP: 7.4
+ * License:      GPL v2 or later
+ * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
+ * Network:      true
  *
+ * @package WPComments
  */
 
-namespace WpComments;
+namespace WPComments;
 
 // If this file is called directly, abort.
-if (!defined("WPINC")) {
-    die();
+if ( ! defined( 'WPINC' ) ) {
+	die();
 }
 
-// Define constants
-define('WPCOMMENTS_VERSION', '2.0.0');
-define('WPCOMMENTS_PLUGIN_FILE', __FILE__);
-define('WPCOMMENTS_URL', plugin_dir_url(__FILE__));
-define('WPCOMMENTS_PATH', plugin_dir_path(__FILE__));
+// Define constants.
+define( 'WPCOMMENTS_VERSION', '2.0.0' );
+define( 'WPCOMMENTS_PLUGIN_FILE', __FILE__ );
+define( 'WPCOMMENTS_URL', plugin_dir_url( __FILE__ ) );
+define( 'WPCOMMENTS_PATH', plugin_dir_path( __FILE__ ) );
 
-$network_activated = is_network_wide(__FILE__);
+$network_activated = is_network_wide( __FILE__ );
 
-if (!defined('WPCOMMENTS_IS_NETWORK')) {
-    define('WPCOMMENTS_IS_NETWORK', $network_activated);
+if ( ! defined( 'WPCOMMENTS_IS_NETWORK' ) ) {
+	define( 'WPCOMMENTS_IS_NETWORK', $network_activated );
 }
 
-// Initialize plugin
-add_action('plugins_loaded', __NAMESPACE__ . '\init');
-add_action('plugins_loaded', __NAMESPACE__ . '\load_textdomain');
-add_action('admin_init', __NAMESPACE__ . '\register_general_settings_field');
+// Initialize plugin.
+add_action( 'plugins_loaded', __NAMESPACE__ . '\init' );
+add_action( 'plugins_loaded', __NAMESPACE__ . '\load_textdomain' );
+add_action( 'admin_init', __NAMESPACE__ . '\register_general_settings_field' );
 
-// Load includes
+// Load includes.
 require_once WPCOMMENTS_PATH . 'includes/class-comment-author-role-badge.php';
 
-if ( file_exists( __DIR__ . '/includes/class-delete-pending-comments.php' ) ) {
-	require_once __DIR__ . '/includes/class-delete-pending-comments.php';
-}
+$includes = array(
+	'class-delete-pending-comments.php',
+	'class-comments-sticky-moderate.php',
+	'class-wpcomments-settings.php',
+	'class-wpcomments-email-notification.php',
+	'class-wpcomments-network-settings.php',
+	'class-wpcomments-remove-feed-link.php',
+	'class-wpcomments-remove-website-field.php',
+	'class-wpcomments-frequently-replies.php',
+	'class-wpcomments-validation.php',
+	'class-wpcomments-moderation-info.php',
+);
 
-if ( file_exists( __DIR__ . '/includes/class-comments-sticky-moderate.php' ) ) {
-	require_once __DIR__ . '/includes/class-comments-sticky-moderate.php';
-}
-
-if ( file_exists( __DIR__ . '/includes/class-wpcomments-settings.php' ) ) {
-	require_once __DIR__ . '/includes/class-wpcomments-settings.php';
-}
-
-if ( file_exists( __DIR__ . '/includes/class-wpcomments-network-settings.php' ) ) {
-	require_once __DIR__ . '/includes/class-wpcomments-network-settings.php';
-}
-
-/**
- * Bootstrap the plugin
- */
-function init(): void
-{
-    $network_disable_comments = false;
-    if (is_multisite()) {
-        $network_disable_comments = get_site_option('wpcomments_network_disable_comments', false);
-    }
-    
-    $site_disable_comments = get_option('wpcomments_disable_comments', false);
-    
-    if ($network_disable_comments || $site_disable_comments) {
-        setup();
-    } else {
-    
-    $comments_enabled = false;
-    $herpderp_enabled = false;
-    $role_badge_enabled = false;
-
-    if (WPCOMMENTS_IS_NETWORK) {
-        if (is_multisite() && class_exists('WPComments_Network_Settings')) {
-            $comments_enabled = WPComments_Network_Settings::get_effective_setting('wpcomments_enable_comments', false);
-            $herpderp_enabled = WPComments_Network_Settings::get_effective_setting('wpcomments_enable_herpderp', false);
-            $role_badge_enabled = WPComments_Network_Settings::get_effective_setting('wpcomments_enable_role_badge', true);
-            $delete_pending_enabled = WPComments_Network_Settings::get_effective_setting('wpcomments_enable_delete_pending', true);
-            $sticky_moderate_enabled = WPComments_Network_Settings::get_effective_setting('wpcomments_enable_sticky_moderate', true);
-        } else {
-            $comments_enabled = get_option('wpcomments_enable_comments', false);
-            $herpderp_enabled = get_option('wpcomments_enable_herpderp', false);
-            $role_badge_enabled = get_option('wpcomments_enable_role_badge', true);
-            $delete_pending_enabled = get_option('wpcomments_enable_delete_pending', true);
-            $sticky_moderate_enabled = get_option('wpcomments_enable_sticky_moderate', true);
-        }
-    }
-
-    $comment_status = apply_filters('wpcomments_enable_comments', $comments_enabled);
-    $herpderp_status = apply_filters('wpcomments_enable_herpderp', $herpderp_enabled);
-    $role_badge_status = apply_filters('wpcomments_enable_role_badge', $role_badge_enabled);
-
-    if (!$comment_status) {
-        setup();
-    } else {
-        if ($herpderp_status) {
-            setup_herpderp();
-        }
-        if ($role_badge_status) {
-            setup_role_badge();
-        }
-        
-        if ($delete_pending_enabled) {
-            setup_delete_pending();
-        }
-        
-        if ($sticky_moderate_enabled) {
-            setup_sticky_moderate();
-        }
-    }
-    
-    }
-    
-    if (is_admin()) {
-        new WPComments_Settings();
-    }
-    
-    if (is_multisite() && is_network_admin()) {
-        new WPComments_Network_Settings();
-    }
+foreach ( $includes as $include ) {
+	$file_path = WPCOMMENTS_PATH . 'includes/' . $include;
+	if ( file_exists( $file_path ) ) {
+		require_once $file_path;
+	}
 }
 
 /**
- * Setup routine
+ * Get feature settings based on network or site configuration.
+ *
+ * @since 2.0.0
+ * @return array Feature settings array.
  */
-function setup(): void
-{
-    // Comments are never open.
-    add_filter("comments_open", "__return_false");
+function get_feature_settings(): array {
+	$defaults = array(
+		'comments_disabled'             => false,
+		'herpderp_enabled'              => false,
+		'role_badge_enabled'            => true,
+		'delete_pending_enabled'        => true,
+		'sticky_moderate_enabled'       => true,
+		'remove_feed_link_enabled'      => false,
+		'remove_website_field_enabled'  => false,
+		'frequently_replies_enabled'    => true,
+		'validation_enabled'            => true,
+		'moderation_info_enabled'       => true,
+		'email_notification_enabled'    => true,
+	);
 
-    // And pings are a form of comments.
-    add_filter("pings_open", "__return_false");
+	if ( WPCOMMENTS_IS_NETWORK && is_multisite() && class_exists( '\WPComments\WPComments_Network_Settings' ) ) {
+		return array(
+			'comments_disabled'             => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_network_disable_comments', $defaults['comments_disabled'] ),
+			'herpderp_enabled'              => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_herpderp', $defaults['herpderp_enabled'] ),
+			'role_badge_enabled'            => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_role_badge', $defaults['role_badge_enabled'] ),
+			'delete_pending_enabled'        => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_delete_pending', $defaults['delete_pending_enabled'] ),
+			'sticky_moderate_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_sticky_moderate', $defaults['sticky_moderate_enabled'] ),
+			'remove_feed_link_enabled'      => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_remove_feed_link', $defaults['remove_feed_link_enabled'] ),
+			'remove_website_field_enabled'  => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_remove_website_field', $defaults['remove_website_field_enabled'] ),
+			'frequently_replies_enabled'    => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_frequently_replies', $defaults['frequently_replies_enabled'] ),
+			'validation_enabled'            => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_validation', $defaults['validation_enabled'] ),
+			'moderation_info_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_moderation_info', $defaults['moderation_info_enabled'] ),
+			'email_notification_enabled'    => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_email_notification', $defaults['email_notification_enabled'] ),
+		);
+	}
 
-    // No content has an existing comment.
-    add_filter("get_comments_number", "__return_zero");
+	return array(
+		'comments_disabled'             => get_option( 'wpcomments_disable_comments', $defaults['comments_disabled'] ),
+		'herpderp_enabled'              => get_option( 'wpcomments_enable_herpderp', $defaults['herpderp_enabled'] ),
+		'role_badge_enabled'            => get_option( 'wpcomments_enable_role_badge', $defaults['role_badge_enabled'] ),
+		'delete_pending_enabled'        => get_option( 'wpcomments_enable_delete_pending', $defaults['delete_pending_enabled'] ),
+		'sticky_moderate_enabled'       => get_option( 'wpcomments_enable_sticky_moderate', $defaults['sticky_moderate_enabled'] ),
+		'remove_feed_link_enabled'      => get_option( 'wpcomments_enable_remove_feed_link', $defaults['remove_feed_link_enabled'] ),
+		'remove_website_field_enabled'  => get_option( 'wpcomments_enable_remove_website_field', $defaults['remove_website_field_enabled'] ),
+		'frequently_replies_enabled'    => get_option( 'wpcomments_enable_frequently_replies', $defaults['frequently_replies_enabled'] ),
+		'validation_enabled'            => get_option( 'wpcomments_enable_validation', $defaults['validation_enabled'] ),
+		'moderation_info_enabled'       => get_option( 'wpcomments_enable_moderation_info', $defaults['moderation_info_enabled'] ),
+		'email_notification_enabled'    => get_option( 'wpcomments_enable_email_notification', $defaults['email_notification_enabled'] ),
+	);
+}
 
-    // So return an empty set or count of comments for all comment queries.
-    add_filter(
-        "comments_pre_query",
-        __NAMESPACE__ . '\filter_comments_pre_query',
-        10,
-        2,
-    );
+/**
+ * Bootstrap the plugin.
+ *
+ * @since 2.0.0
+ */
+function init(): void {
+	$network_disable_comments = false;
+	if ( is_multisite() ) {
+		$network_disable_comments = get_site_option( 'wpcomments_network_disable_comments', false );
+	}
 
-    // And disable the comments feed.
-    add_filter("feed_links_show_comments_feed", "__return_false");
+	$site_disable_comments = get_option( 'wpcomments_disable_comments', false );
 
-    // And remove comment rewrite rules.
-    add_filter("comments_rewrite_rules", "__return_empty_array");
+	if ( $network_disable_comments || $site_disable_comments ) {
+		setup();
+	} else {
+		// Get feature settings.
+		$feature_settings = get_feature_settings();
 
-    // Then remove comment support from everything.
-    add_action("init", __NAMESPACE__ . '\remove_comment_support', 99);
-    add_action("init", __NAMESPACE__ . '\remove_trackback_support', 99);
+		$comments_disabled = apply_filters( 'wpcomments_disable_comments', $feature_settings['comments_disabled'] );
+		$herpderp_status   = apply_filters( 'wpcomments_enable_herpderp', $feature_settings['herpderp_enabled'] );
+		$role_badge_status = apply_filters( 'wpcomments_enable_role_badge', $feature_settings['role_badge_enabled'] );
 
-    // Remove comment blocks from the editor. (Twice to be sure!).
-    add_action(
-        "enqueue_block_editor_assets",
-        __NAMESPACE__ . "\unregister_comment_blocks_javascript",
-    );
-    add_action("init", __NAMESPACE__ . "\unregister_comment_blocks", 99);
+		if ( $comments_disabled ) {
+			setup();
+		} else {
+			if ( $herpderp_status ) {
+				setup_herpderp();
+			}
+			if ( $role_badge_status ) {
+				setup_role_badge();
+			}
 
-    // And disable all comment related views in the admin.
-    add_filter("wp_count_comments", __NAMESPACE__ . '\filter_wp_count_comments');
-    add_action(
-        "add_admin_bar_menus",
-        __NAMESPACE__ . '\remove_admin_bar_comments_menu',
-    );
-    add_action(
-        "admin_bar_menu",
-        __NAMESPACE__ . '\remove_my_sites_comments_menu',
-        21,
-    );
-    add_action("admin_menu", __NAMESPACE__ . '\remove_comments_menu_page');
-    add_action(
-        "load-options-discussion.php",
-        __NAMESPACE__ . "\block_comments_admin_screen",
-    );
-    add_action(
-        "load-edit-comments.php",
-        __NAMESPACE__ . "\block_comments_admin_screen",
-    );
+			if ( $feature_settings['delete_pending_enabled'] ) {
+				setup_delete_pending();
+			}
 
-    // Disable REST API comments
-    add_filter('rest_endpoints', __NAMESPACE__ . '\remove_rest_api_endpoints');
-    add_filter('rest_pre_insert_comment', __NAMESPACE__ . '\disable_rest_api_comments', 10, 2);
+			if ( $feature_settings['sticky_moderate_enabled'] ) {
+				setup_sticky_moderate();
+			}
 
-    // Disable XML-RPC comments
-    add_filter('xmlrpc_methods', __NAMESPACE__ . '\disable_xmlrpc_comments');
+			// Initialize new feature modules.
+			if ( $feature_settings['remove_feed_link_enabled'] ) {
+				new \WPComments\WPComments_Remove_Feed_Link();
+			}
 
-    // Hide dashboard comment widgets
-    add_action('admin_head', __NAMESPACE__ . '\hide_dashboard_comment_widgets');
-    add_action('wp_dashboard_setup', __NAMESPACE__ . '\remove_dashboard_comment_widgets');
+			if ( $feature_settings['remove_website_field_enabled'] ) {
+				new \WPComments\WPComments_Remove_Website_Field();
+			}
+
+			if ( $feature_settings['frequently_replies_enabled'] ) {
+				new \WPComments\WPComments_Frequently_Replies();
+			}
+
+			if ( $feature_settings['validation_enabled'] ) {
+				\WPComments\WPComments_Validation::get_instance();
+			}
+
+			if ( $feature_settings['moderation_info_enabled'] ) {
+				\WPComments\WPComments_Moderation_Info::get_instance();
+			}
+
+			if ( $feature_settings['email_notification_enabled'] ) {
+				new \WPComments\WPComments_Email_Notification();
+			}
+		}
+	}
+
+	if ( is_admin() ) {
+		new \WPComments\WPComments_Settings();
+	}
+
+	if ( is_multisite() && is_network_admin() ) {
+		new \WPComments\WPComments_Network_Settings();
+	}
+}
+
+/**
+ * Disable comments and trackbacks.
+ *
+ * @since 1.0.0
+ */
+function setup(): void {
+	// Disable comments.
+	add_filter( 'comments_open', '__return_false' );
+
+	// And pings are a form of comments.
+	add_filter( 'pings_open', '__return_false' );
+
+	// No content has an existing comment.
+	add_filter( 'get_comments_number', '__return_zero' );
+
+	// So return an empty set or count of comments for all comment queries.
+	add_filter(
+		'comments_pre_query',
+		__NAMESPACE__ . '\filter_comments_pre_query',
+		10,
+		2
+	);
+
+	// And disable the comments feed.
+	add_filter( 'feed_links_show_comments_feed', '__return_false' );
+
+	// And remove comment rewrite rules.
+	add_filter( 'comments_rewrite_rules', '__return_empty_array' );
+
+	// Then remove comment support from everything.
+	add_action( 'init', __NAMESPACE__ . '\remove_comment_support', 99 );
+	add_action( 'init', __NAMESPACE__ . '\remove_trackback_support', 99 );
+
+	// Remove comment blocks from the editor. (Twice to be sure!).
+	add_action(
+		'enqueue_block_editor_assets',
+		__NAMESPACE__ . '\unregister_comment_blocks_javascript'
+	);
+	add_action( 'init', __NAMESPACE__ . '\unregister_comment_blocks', 99 );
+
+	// And disable all comment related views in the admin.
+	add_filter( 'wp_count_comments', __NAMESPACE__ . '\filter_wp_count_comments' );
+	add_action(
+		'add_admin_bar_menus',
+		__NAMESPACE__ . '\remove_admin_bar_comments_menu'
+	);
+	add_action(
+		'admin_bar_menu',
+		__NAMESPACE__ . '\remove_my_sites_comments_menu',
+		21
+	);
+	add_action( 'admin_menu', __NAMESPACE__ . '\remove_comments_menu_page' );
+	add_action(
+		'load-options-discussion.php',
+		__NAMESPACE__ . '\block_comments_admin_screen'
+	);
+	add_action(
+		'load-edit-comments.php',
+		__NAMESPACE__ . '\block_comments_admin_screen'
+	);
+
+	// Disable REST API comments.
+	add_filter( 'rest_endpoints', __NAMESPACE__ . '\remove_rest_api_endpoints' );
+	add_filter( 'rest_pre_insert_comment', __NAMESPACE__ . '\disable_rest_api_comments', 10, 2 );
+
+	// Disable XML-RPC comments.
+	add_filter( 'xmlrpc_methods', __NAMESPACE__ . '\disable_xmlrpc_comments' );
+
+	// Hide dashboard comment widgets.
+	add_action( 'admin_head', __NAMESPACE__ . '\hide_dashboard_comment_widgets' );
+	add_action( 'wp_dashboard_setup', __NAMESPACE__ . '\remove_dashboard_comment_widgets' );
 }
 
 /**
  * Filter the comments pre query.
  *
  * @param array<int,\WP_Comment>|int|null $comments The comments to filter.
- * @param \WP_Comment_Query               $query The query object.
+ * @param \WP_Comment_Query               $query    The query object.
  * @return array<int,\WP_Comment>|int The filtered comments.
  */
-function filter_comments_pre_query($comments, \WP_Comment_Query $query)
-{
-    if ($query->query_vars["count"]) {
-        return 0;
-    }
+function filter_comments_pre_query( $comments, \WP_Comment_Query $query ) {
+	if ( $query->query_vars['count'] ) {
+		return 0;
+	}
 
-    return [];
+	return array();
 }
 
 /**
  * Remove comments support from all post types that have registered
  * it by priority 99 on init.
  */
-function remove_comment_support(): void
-{
-    $post_types = get_post_types_by_support("comments");
+function remove_comment_support(): void {
+	$post_types = get_post_types_by_support( 'comments' );
 
-    foreach ($post_types as $post_type) {
-        remove_post_type_support($post_type, "comments");
-    }
+	foreach ( $post_types as $post_type ) {
+		remove_post_type_support( $post_type, 'comments' );
+	}
 }
 
 /**
  * Remove trackbacks support from all post types that have registered
  * it by priority 99 on init.
  */
-function remove_trackback_support(): void
-{
-    $post_types = get_post_types_by_support("trackbacks");
+function remove_trackback_support(): void {
+	$post_types = get_post_types_by_support( 'trackbacks' );
 
-    foreach ($post_types as $post_type) {
-        remove_post_type_support($post_type, "trackbacks");
-    }
+	foreach ( $post_types as $post_type ) {
+		remove_post_type_support( $post_type, 'trackbacks' );
+	}
 }
 
 /**

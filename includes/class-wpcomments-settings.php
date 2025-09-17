@@ -1,39 +1,102 @@
 <?php
+/**
+ * WPComments Settings Class
+ *
+ * @package WPComments
+ * @since   2.0.0
+ */
 
 namespace WPComments;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
+/**
+ * WPComments Settings Class
+ */
 class WPComments_Settings {
+
+	/**
+	 * Settings tabs.
+	 *
+	 * @var array
+	 */
+	private $tabs = array();
+
+	/**
+	 * Current tab.
+	 *
+	 * @var string
+	 */
+	private $current_tab = 'general';
+
+	/**
+	 * Option group.
+	 *
+	 * @var string
+	 */
+	private $option_group = 'wpcomments_settings';
+
+	/**
+	 * Page slug.
+	 *
+	 * @var string
+	 */
+	private $page_slug = 'wpcomments-settings';
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {
+		if ( is_multisite() ) {
+			$network_disable_comments = get_site_option( 'wpcomments_network_disable_comments', 0 );
+			if ( $network_disable_comments ) {
+				return;
+			}
+		}
+
+		$site_disable_comments = get_option( 'wpcomments_disable_comments', 0 );
+		if ( $site_disable_comments ) {
+			return;
+		}
+
+		$this->init_tabs();
+		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+	}
     
-    private $option_group = 'wpcomments_settings';
-    private $page_slug = 'wpcomments-settings';
-    
-    public function __construct() {
-        if (is_multisite()) {
-            $network_disable_comments = get_site_option('wpcomments_network_disable_comments', 0);
-            if ($network_disable_comments) {
-                return;
-            }
-        }
+    private function init_tabs() {
+        $this->tabs = array(
+            'general' => array(
+                'title' => '基本设置',
+                'icon' => 'dashicons-admin-generic'
+            ),
+            'features' => array(
+                'title' => '功能设置', 
+                'icon' => 'dashicons-admin-tools'
+            ),
+            'email_notifications' => array(
+                'title' => '邮件通知',
+                'icon' => 'dashicons-email-alt'
+            ),
+            'advanced' => array(
+                'title' => '高级设置',
+                'icon' => 'dashicons-admin-settings'
+            )
+        );
         
-        $site_disable_comments = get_option('wpcomments_disable_comments', 0);
-        if ($site_disable_comments) {
-            return;
+        if (isset($_GET['tab']) && array_key_exists($_GET['tab'], $this->tabs)) {
+            $this->current_tab = sanitize_text_field($_GET['tab']);
         }
-        
-        add_action('admin_menu', array($this, 'add_admin_menu'));
-        add_action('admin_init', array($this, 'register_settings'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_styles'));
     }
     
     public function add_admin_menu() {
         if (current_user_can('manage_options')) {
             add_options_page(
-                'WP Comments 设置',
-                'WP Comments',
+                'WPComments Settings',
+                'WPComments',
                 'manage_options',
                 $this->page_slug,
                 array($this, 'render_settings_page')
@@ -42,11 +105,14 @@ class WPComments_Settings {
     }
     
     public function register_settings() {
-        register_setting($this->option_group, 'wpcomments_enable_comments', array(
-            'type' => 'boolean',
-            'sanitize_callback' => 'boolval',
-            'default' => false
-        ));
+        add_settings_section(
+            'wpcomments_general_section',
+            '',
+            null,
+            $this->page_slug
+        );
+        
+
         
         register_setting($this->option_group, 'wpcomments_enable_herpderp', array(
             'type' => 'boolean',
@@ -54,11 +120,29 @@ class WPComments_Settings {
             'default' => false
         ));
         
+        add_settings_field(
+            'wpcomments_enable_herpderp',
+            '阿巴阿巴功能',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_herpderp')
+        );
+        
         register_setting($this->option_group, 'wpcomments_enable_role_badge', array(
             'type' => 'boolean',
             'sanitize_callback' => 'boolval',
             'default' => false
         ));
+        
+        add_settings_field(
+            'wpcomments_enable_role_badge',
+            '用户角色徽章',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_role_badge')
+        );
         
         register_setting($this->option_group, 'wpcomments_enable_delete_pending', array(
             'type' => 'boolean',
@@ -66,65 +150,106 @@ class WPComments_Settings {
             'default' => false
         ));
         
+        add_settings_field(
+            'wpcomments_enable_delete_pending',
+            '删除待审核评论',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_delete_pending')
+        );
+        
         register_setting($this->option_group, 'wpcomments_enable_sticky_moderate', array(
             'type' => 'boolean',
             'sanitize_callback' => 'boolval',
             'default' => false
         ));
         
-        add_settings_section(
-            'wpcomments_general_section',
-            '基本设置',
-            array($this, 'render_general_section'),
-            $this->page_slug
-        );
-        
-        add_settings_section(
-            'wpcomments_features_section',
-            '功能设置',
-            array($this, 'render_features_section'),
-            $this->page_slug
-        );
-        
-        add_settings_field(
-            'wpcomments_enable_comments',
-            '启用评论增强',
-            array($this, 'render_enable_comments_field'),
-            $this->page_slug,
-            'wpcomments_general_section'
-        );
-        
-        add_settings_field(
-            'wpcomments_enable_herpderp',
-            '启用阿巴阿巴',
-            array($this, 'render_enable_herpderp_field'),
-            $this->page_slug,
-            'wpcomments_features_section'
-        );
-        
-        add_settings_field(
-            'wpcomments_enable_role_badge',
-            '启用角色徽章',
-            array($this, 'render_enable_role_badge_field'),
-            $this->page_slug,
-            'wpcomments_features_section'
-        );
-        
-        add_settings_field(
-            'wpcomments_enable_delete_pending',
-            '启用删除待审评论',
-            array($this, 'render_enable_delete_pending_field'),
-            $this->page_slug,
-            'wpcomments_features_section'
-        );
-        
         add_settings_field(
             'wpcomments_enable_sticky_moderate',
-            '启用评论置顶审核',
-            array($this, 'render_enable_sticky_moderate_field'),
+            '置顶审核评论',
+            array($this, 'render_checkbox_field'),
             $this->page_slug,
-            'wpcomments_features_section'
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_sticky_moderate')
         );
+        
+        register_setting($this->option_group, 'wpcomments_enable_remove_feed_link', array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'boolval',
+            'default' => false
+        ));
+        
+        add_settings_field(
+            'wpcomments_enable_remove_feed_link',
+            '完全禁用评论RSS订阅功能',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_remove_feed_link')
+        );
+        
+        register_setting($this->option_group, 'wpcomments_enable_remove_website_field', array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'boolval',
+            'default' => false
+        ));
+        
+        add_settings_field(
+            'wpcomments_enable_remove_website_field',
+            '移除网站链接字段',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_remove_website_field')
+        );
+        
+        register_setting($this->option_group, 'wpcomments_enable_frequently_replies', array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'boolval',
+            'default' => false
+        ));
+        
+        add_settings_field(
+            'wpcomments_enable_frequently_replies',
+            '常用回复功能',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_frequently_replies')
+        );
+        
+        register_setting($this->option_group, 'wpcomments_enable_validation', array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'boolval',
+            'default' => true
+        ));
+        
+        add_settings_field(
+            'wpcomments_enable_validation',
+            '评论表单验证',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_validation')
+        );
+        
+        register_setting($this->option_group, 'wpcomments_enable_moderation_info', array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'boolval',
+            'default' => true
+        ));
+        
+        add_settings_field(
+            'wpcomments_enable_moderation_info',
+            '评论审核信息',
+            array($this, 'render_checkbox_field'),
+            $this->page_slug,
+            'wpcomments_general_section',
+            array('option_name' => 'wpcomments_enable_moderation_info')
+        );
+        
+        \WPComments\WPComments_Moderation_Info::register_settings();
     }
     
     public function render_settings_page() {
@@ -140,129 +265,240 @@ class WPComments_Settings {
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-            <div class="wpcomments-settings-container">
-                <form action="options.php" method="post">
-                    <?php
-                    settings_fields($this->option_group);
-                    do_settings_sections($this->page_slug);
-                    submit_button('保存设置');
-                    ?>
-                </form>
-                
-                <div class="wpcomments-info-box">
-                    <h3>关于 WP Comments</h3>
-                    <p>WP Comments 是一个强大的 WordPress 评论增强插件，提供多种实用功能来改善您的评论体验。</p>
-                    <ul>
-                        <li><strong>评论增强：</strong>启用插件的核心功能</li>
-                        <li><strong>阿巴阿巴：</strong>将评论内容替换为"阿巴阿巴"</li>
-                        <li><strong>角色徽章：</strong>为不同用户角色显示徽章</li>
-                        <li><strong>删除待审评论：</strong>快速删除待审核的评论</li>
-                        <li><strong>评论置顶审核：</strong>将评论操作按钮置顶显示</li>
-                    </ul>
-                </div>
+            
+            <nav class="nav-tab-wrapper">
+                <?php foreach ($this->tabs as $tab_key => $tab): ?>
+                    <a href="<?php echo esc_url(add_query_arg('tab', $tab_key, admin_url('options-general.php?page=' . $this->page_slug))); ?>" 
+                       class="nav-tab <?php echo $this->current_tab === $tab_key ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons <?php echo esc_attr($tab['icon']); ?>"></span>
+                        <?php echo esc_html($tab['title']); ?>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
+            
+            <div class="wpcomments-tab-content">
+                <?php $this->render_tab_content(); ?>
             </div>
         </div>
         <?php
     }
     
-    public function render_general_section() {
-        echo '<p>配置 WP Comments 插件的基本设置。</p>';
+    private function render_tab_content() {
+        switch ($this->current_tab) {
+            case 'general':
+                $this->render_general_tab();
+                break;
+            case 'features':
+                $this->render_features_tab();
+                break;
+            case 'email_notifications':
+                $this->render_email_notifications_tab();
+                break;
+            case 'advanced':
+                $this->render_advanced_tab();
+                break;
+        }
     }
     
-    public function render_features_section() {
-        echo '<p>启用或禁用特定的评论功能。</p>';
+    private function render_general_tab() {
+        ?>
+        <form action="options.php" method="post">
+            <?php
+            settings_fields($this->option_group);
+            do_settings_sections($this->page_slug);
+            submit_button('保存设置');
+            ?>
+        </form>
+        <?php
     }
     
-    public function render_enable_comments_field() {
-        $value = get_option('wpcomments_enable_comments', false);
-        echo '<input type="hidden" name="wpcomments_enable_comments" value="0" />';
-        echo '<input type="checkbox" id="wpcomments_enable_comments" name="wpcomments_enable_comments" value="1" ' . checked(1, $value, false) . ' />';
-        echo '<label for="wpcomments_enable_comments">启用 WP Comments 插件的所有功能</label>';
-        echo '<p class="description">这是插件的主开关，关闭后所有功能都将停用。</p>';
+    public function render_checkbox_field($args) {
+        $option_name = $args['option_name'];
+        $value = get_option($option_name, false);
+        ?>
+        <fieldset>
+            <input type="hidden" name="<?php echo esc_attr($option_name); ?>" value="0" />
+            <label for="<?php echo esc_attr($option_name); ?>">
+                <input type="checkbox" id="<?php echo esc_attr($option_name); ?>" name="<?php echo esc_attr($option_name); ?>" value="1" <?php checked(1, $value); ?> />
+                <?php
+                switch($option_name) {
+                    case 'wpcomments_enable_herpderp':
+                        echo '将评论内容替换为"阿巴阿巴"';
+                        break;
+                    case 'wpcomments_enable_role_badge':
+                        echo '在评论中显示用户角色徽章';
+                        break;
+                    case 'wpcomments_enable_delete_pending':
+                        echo '自动删除待审核评论';
+                        break;
+                    case 'wpcomments_enable_sticky_moderate':
+                        echo '置顶待审核评论';
+                        break;
+                    case 'wpcomments_enable_remove_feed_link':
+                        echo '彻底移除评论RSS订阅功能';
+                        break;
+                    case 'wpcomments_enable_remove_website_field':
+                        echo '移除评论表单中的网站链接字段';
+                        break;
+                    case 'wpcomments_enable_frequently_replies':
+                        echo '启用常用回复功能';
+                        break;
+                    case 'wpcomments_enable_validation':
+                        echo '启用评论表单验证';
+                        break;
+                    case 'wpcomments_enable_moderation_info':
+                        echo '启用评论审核信息';
+                        break;
+                }
+                ?>
+            </label>
+            <?php
+            switch($option_name) {
+                case 'wpcomments_enable_herpderp':
+                    echo '<p class="description">启用后，所有评论内容都会显示为"阿巴阿巴"。</p>';
+                    break;
+                case 'wpcomments_enable_role_badge':
+                    echo '<p class="description">在评论作者名称旁显示其用户角色（如管理员、编辑等）。</p>';
+                    break;
+                case 'wpcomments_enable_delete_pending':
+                    echo '<p class="description">自动删除超过指定时间的待审核评论。</p>';
+                    break;
+                case 'wpcomments_enable_sticky_moderate':
+                    echo '<p class="description">将待审核的评论置顶显示，方便管理员处理。</p>';
+                    break;
+                case 'wpcomments_enable_remove_feed_link':
+                    echo '<p class="description">彻底移除评论RSS订阅功能，包括头部链接和订阅URL访问，访问时返回404错误。</p>';
+                    break;
+                case 'wpcomments_enable_remove_website_field':
+                    echo '<p class="description">隐藏评论表单中的网站URL输入框。</p>';
+                    break;
+                case 'wpcomments_enable_frequently_replies':
+                    echo '<p class="description">启用后，您可以创建和管理常用回复模板，在回复评论时快速插入预设内容。</p>';
+                    break;
+                case 'wpcomments_enable_validation':
+                    echo '<p class="description">启用前端评论表单验证，包括必填字段检查、邮箱格式验证等，并阻止包含活跃链接的评论。</p>';
+                    break;
+                case 'wpcomments_enable_moderation_info':
+                    echo '<p class="description">在评论管理页面显示评论的修订历史信息，包括最后修改时间和编辑者信息。</p>';
+                    break;
+            }
+            ?>
+        </fieldset>
+        <?php
     }
     
-    public function render_enable_herpderp_field() {
-        $value = get_option('wpcomments_enable_herpderp', false);
-        echo '<input type="hidden" name="wpcomments_enable_herpderp" value="0" />';
-        echo '<input type="checkbox" id="wpcomments_enable_herpderp" name="wpcomments_enable_herpderp" value="1" ' . checked(1, $value, false) . ' />';
-        echo '<label for="wpcomments_enable_herpderp">将评论内容替换为"阿巴阿巴"</label>';
-        echo '<p class="description">启用后，所有评论内容都会显示为"阿巴阿巴"。</p>';
+    private function render_features_tab() {
+        ?>
+        <p>功能设置选项已移至基本设置标签页，请在基本设置中配置所有功能选项。</p>
+        <?php
     }
     
-    public function render_enable_role_badge_field() {
-        $value = get_option('wpcomments_enable_role_badge', false);
-        echo '<input type="hidden" name="wpcomments_enable_role_badge" value="0" />';
-        echo '<input type="checkbox" id="wpcomments_enable_role_badge" name="wpcomments_enable_role_badge" value="1" ' . checked(1, $value, false) . ' />';
-        echo '<label for="wpcomments_enable_role_badge">为用户显示角色徽章</label>';
-        echo '<p class="description">在评论中显示用户的角色徽章（如管理员、编辑等）。</p>';
+
+    
+    private function render_advanced_tab() {
+        ?>
+        <p>高级设置选项已移至基本设置标签页，请在基本设置中配置所有功能选项。</p>
+        <?php
     }
     
-    public function render_enable_delete_pending_field() {
-        $value = get_option('wpcomments_enable_delete_pending', false);
-        echo '<input type="hidden" name="wpcomments_enable_delete_pending" value="0" />';
-        echo '<input type="checkbox" id="wpcomments_enable_delete_pending" name="wpcomments_enable_delete_pending" value="1" ' . checked(1, $value, false) . ' />';
-        echo '<label for="wpcomments_enable_delete_pending">启用删除待审评论功能</label>';
-        echo '<p class="description">在评论管理页面添加快速删除待审核评论的功能。</p>';
-    }
+
     
-    public function render_enable_sticky_moderate_field() {
-        $value = get_option('wpcomments_enable_sticky_moderate', false);
-        echo '<input type="hidden" name="wpcomments_enable_sticky_moderate" value="0" />';
-        echo '<input type="checkbox" id="wpcomments_enable_sticky_moderate" name="wpcomments_enable_sticky_moderate" value="1" ' . checked(1, $value, false) . ' />';
-        echo '<label for="wpcomments_enable_sticky_moderate">启用评论置顶审核功能</label>';
-        echo '<p class="description">将评论操作按钮移至评论内容列的前部，便于快速操作。</p>';
-    }
+
     
-    public function enqueue_admin_styles($hook) {
+    public function enqueue_admin_assets($hook) {
         if ('settings_page_' . $this->page_slug !== $hook) {
             return;
         }
         
-        wp_add_inline_style('wp-admin', '
-            .wpcomments-settings-container {
+        wp_enqueue_script('jquery');
+        wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
+        
+        wp_add_inline_style('wp-admin', $this->get_admin_styles());
+    }
+    
+    private function get_admin_styles() {
+        return '
+            .nav-tab-wrapper {
+                margin-bottom: 20px;
+            }
+            
+            .nav-tab .dashicons {
+                margin-right: 5px;
+                vertical-align: middle;
+            }
+            
+            .wpcomments-tab-content {
+                background: #fff;
+                border: 1px solid #ccd0d4;
+                border-radius: 4px;
+                padding: 20px;
+                box-shadow: 0 1px 1px rgba(0,0,0,.04);
+            }
+            
+            .wpfr-container {
+                max-width: 800px;
+            }
+            
+            .reply-item {
+                background: #f9f9f9;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 15px;
+                margin-bottom: 15px;
+                position: relative;
+            }
+            
+            .reply-header {
                 display: flex;
-                gap: 20px;
-                margin-top: 20px;
-            }
-            
-            .wpcomments-settings-container form {
-                flex: 2;
-                background: #fff;
-                border: 1px solid #ccd0d4;
-                border-radius: 4px;
-                padding: 20px;
-                box-shadow: 0 1px 1px rgba(0,0,0,.04);
-            }
-            
-            .wpcomments-info-box {
-                flex: 1;
-                background: #fff;
-                border: 1px solid #ccd0d4;
-                border-radius: 4px;
-                padding: 20px;
-                box-shadow: 0 1px 1px rgba(0,0,0,.04);
-                height: fit-content;
-            }
-            
-            .wpcomments-info-box h3 {
-                margin-top: 0;
-                color: #23282d;
-                border-bottom: 1px solid #eee;
-                padding-bottom: 10px;
-            }
-            
-            .wpcomments-info-box ul {
-                margin: 15px 0;
-                padding-left: 20px;
-            }
-            
-            .wpcomments-info-box li {
+                align-items: center;
+                gap: 10px;
                 margin-bottom: 10px;
-                line-height: 1.6;
             }
             
-            .wpcomments-info-box li strong {
-                color: #0073aa;
+            .reply-title {
+                flex: 1;
+            }
+            
+            .wpfr-remove {
+                color: #a00;
+                border-color: #a00;
+            }
+            
+            .wpfr-remove:hover {
+                background: #a00;
+                color: #fff;
+            }
+            
+            .reply-textarea {
+                width: 100%;
+                resize: vertical;
+            }
+            
+            .wpfr-actions {
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #ddd;
+                display: flex;
+                gap: 10px;
+            }
+            
+            #wpfr-message {
+                margin-top: 15px;
+                padding: 10px;
+                border-radius: 4px;
+                display: none;
+            }
+            
+            #wpfr-message.success {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+            }
+            
+            #wpfr-message.error {
+                background: #f8d7da;
+                border: 1px solid #f5c6cb;
+                color: #721c24;
             }
             
             .form-table th {
@@ -286,56 +522,17 @@ class WPComments_Settings {
                 margin-top: 8px;
                 font-style: italic;
                 color: #666;
-                font-size: 13px;
             }
-            
-            .form-table input[type="checkbox"] {
-                margin-right: 8px;
-                transform: scale(1.1);
-            }
-            
-            h2.title {
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 8px;
-                margin-bottom: 15px;
-                color: #23282d;
-            }
-            
-            .submit {
-                padding-top: 10px;
-                border-top: 1px solid #eee;
-                margin-top: 20px;
-            }
-            
-            .submit .button-primary {
-                background: #0073aa;
-                border-color: #0073aa;
-                font-size: 14px;
-                padding: 8px 16px;
-                height: auto;
-            }
-            
-            .submit .button-primary:hover {
-                background: #005a87;
-                border-color: #005a87;
-            }
-            
-            @media (max-width: 782px) {
-                .wpcomments-settings-container {
-                    flex-direction: column;
-                }
-                
-                .form-table th,
-                .form-table td {
-                    display: block;
-                    width: 100%;
-                    padding: 10px 0;
-                }
-                
-                .form-table th {
-                    border-bottom: none;
-                }
-            }
-        ');
+        ';
+    }
+    
+    private function render_email_notifications_tab() {
+        if (!class_exists('WPComments\\WPComments_Email_Notification')) {
+            echo '<div class="notice notice-error"><p>邮件通知功能类未加载。请确保插件正确安装。</p></div>';
+            return;
+        }
+        
+        $notification = new \WPComments\WPComments_Email_Notification();
+        $notification->output_admin_settings_page();
     }
 }

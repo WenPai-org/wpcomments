@@ -43,9 +43,6 @@ msgstr "自动删除超过指定天数的待审评论"
 msgid "Delete Pending Comments"
 msgstr "删除待审评论"
 
-msgid "I am sure I want to delete all pending comments and realize this cannot be undone"
-msgstr "我确定要删除所有待审评论，并且知道此操作无法撤销"
-
 msgid "Security check failed"
 msgstr "安全检查失败"
 

@@ -20,8 +20,8 @@ class WPComments_Network_Settings {
     public function add_network_admin_menu() {
         add_submenu_page(
             'settings.php',
-            'WP Comments 网络设置',
-            'WP Comments',
+            'WPComments Network Settings',
+            'WPComments',
             'manage_network_options',
             $this->page_slug,
             array($this, 'render_network_settings_page')
@@ -34,16 +34,22 @@ class WPComments_Network_Settings {
         }
         
         $disable_comments = get_site_option('wpcomments_network_disable_comments', false);
-        $enable_comments = get_site_option('wpcomments_network_enable_comments', false);
         $enable_herpderp = get_site_option('wpcomments_network_enable_herpderp', false);
         $enable_role_badge = get_site_option('wpcomments_network_enable_role_badge', false);
         $enable_delete_pending = get_site_option('wpcomments_network_enable_delete_pending', false);
         $enable_sticky_moderate = get_site_option('wpcomments_network_enable_sticky_moderate', false);
+
+        $enable_remove_feed_link = get_site_option('wpcomments_network_enable_remove_feed_link', false);
+        $enable_remove_website_field = get_site_option('wpcomments_network_enable_remove_website_field', false);
+        $enable_frequently_replies = get_site_option('wpcomments_network_enable_frequently_replies', false);
+        $enable_validation = get_site_option('wpcomments_network_enable_validation', false);
+        $enable_moderation_info = get_site_option('wpcomments_network_enable_moderation_info', true);
+        $enable_email_notification = get_site_option('wpcomments_network_enable_email_notification', true);
         $allow_site_override = get_site_option('wpcomments_network_allow_site_override', true);
         
         ?>
         <div class="wrap">
-            <h1>WP Comments 网络设置</h1>
+            <h1>WPComments Network Settings</h1>
             <div class="wpcomments-network-settings-container">
                 <form method="post" action="edit.php?action=wpcomments_network_settings">
                     <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -86,35 +92,79 @@ class WPComments_Network_Settings {
                                     <fieldset id="wpcomments_feature_settings">
                                         <legend class="screen-reader-text">默认功能设置</legend>
                                         
-                                        <label for="wpcomments_network_enable_comments">
-                                            <input type="hidden" name="wpcomments_network_enable_comments" value="0">
-                                            <input type="checkbox" id="wpcomments_network_enable_comments" name="wpcomments_network_enable_comments" value="1" <?php checked(1, $enable_comments); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            默认启用评论增强功能
-                                        </label><br>
+
                                         
                                         <label for="wpcomments_network_enable_herpderp">
                                             <input type="hidden" name="wpcomments_network_enable_herpderp" value="0">
                                             <input type="checkbox" id="wpcomments_network_enable_herpderp" name="wpcomments_network_enable_herpderp" value="1" <?php checked(1, $enable_herpderp); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            默认启用阿巴阿巴功能
-                                        </label><br>
+                                            启用阿巴阿巴功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将对评论内容进行智能过滤，自动将低质量或无意义的评论转换为"阿巴阿巴"等占位文本。</p><br>
                                         
                                         <label for="wpcomments_network_enable_role_badge">
                                             <input type="hidden" name="wpcomments_network_enable_role_badge" value="0">
                                             <input type="checkbox" id="wpcomments_network_enable_role_badge" name="wpcomments_network_enable_role_badge" value="1" <?php checked(1, $enable_role_badge); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            默认启用角色徽章功能
-                                        </label><br>
+                                            启用角色徽章功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将在评论者姓名旁显示其用户角色徽章，如管理员、编辑者等，便于识别用户身份。</p><br>
                                         
                                         <label for="wpcomments_network_enable_delete_pending">
                                             <input type="hidden" name="wpcomments_network_enable_delete_pending" value="0">
                                             <input type="checkbox" id="wpcomments_network_enable_delete_pending" name="wpcomments_network_enable_delete_pending" value="1" <?php checked(1, $enable_delete_pending); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            默认启用删除待审评论功能
-                                        </label><br>
+                                            启用删除待审评论功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，管理员可以批量删除所有待审核状态的评论，提高评论管理效率。</p><br>
                                         
                                         <label for="wpcomments_network_enable_sticky_moderate">
                                             <input type="hidden" name="wpcomments_network_enable_sticky_moderate" value="0">
                                             <input type="checkbox" id="wpcomments_network_enable_sticky_moderate" name="wpcomments_network_enable_sticky_moderate" value="1" <?php checked(1, $enable_sticky_moderate); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            默认启用评论置顶审核功能
+                                            启用评论置顶审核功能
                                         </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，管理员可以将重要评论置顶显示，并对置顶评论进行特殊审核管理。</p><br>
+                                        
+
+                                        
+                                        <label for="wpcomments_network_enable_remove_feed_link">
+                                            <input type="hidden" name="wpcomments_network_enable_remove_feed_link" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_remove_feed_link" name="wpcomments_network_enable_remove_feed_link" value="1" <?php checked(1, $enable_remove_feed_link); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用移除评论订阅链接功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将自动移除评论中的RSS订阅链接，减少垃圾链接和提升页面整洁度。</p><br>
+                                        
+                                        <label for="wpcomments_network_enable_remove_website_field">
+                                            <input type="hidden" name="wpcomments_network_enable_remove_website_field" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_remove_website_field" name="wpcomments_network_enable_remove_website_field" value="1" <?php checked(1, $enable_remove_website_field); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用移除网站链接字段功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将在评论表单中隐藏网站URL字段，减少垃圾评论和恶意链接的提交。</p><br>
+                                        
+                                        <label for="wpcomments_network_enable_frequently_replies">
+                                            <input type="hidden" name="wpcomments_network_enable_frequently_replies" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_frequently_replies" name="wpcomments_network_enable_frequently_replies" value="1" <?php checked(1, $enable_frequently_replies); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用常用回复功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，您可以创建和管理常用回复模板，在回复评论时快速插入预设内容。</p><br>
+                                        
+                                        <label for="wpcomments_network_enable_validation">
+                                            <input type="hidden" name="wpcomments_network_enable_validation" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_validation" name="wpcomments_network_enable_validation" value="1" <?php checked(1, $enable_validation); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用评论表单验证功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，评论表单将进行客户端验证，确保必填字段已填写且格式正确。</p><br>
+                                        
+                                        <label for="wpcomments_network_enable_moderation_info">
+                                            <input type="hidden" name="wpcomments_network_enable_moderation_info" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_moderation_info" name="wpcomments_network_enable_moderation_info" value="1" <?php checked(1, $enable_moderation_info); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用审核信息功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将显示评论审核状态信息，帮助管理员了解评论的审核进度。</p><br>
+                                        
+                                        <label for="wpcomments_network_enable_email_notification">
+                                            <input type="hidden" name="wpcomments_network_enable_email_notification" value="0">
+                                            <input type="checkbox" id="wpcomments_network_enable_email_notification" name="wpcomments_network_enable_email_notification" value="1" <?php checked(1, $enable_email_notification); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            启用邮件通知功能
+                                        </label>
+                                        <p class="description" style="margin-left: 25px; margin-top: 5px; color: #666; font-size: 13px;">启用后，将向管理员和用户发送评论相关的邮件通知。</p>
                                         
                                         <p class="description"><?php echo $disable_comments ? '网络级别已禁用评论功能，以下选项不可设置。' : '这些设置将作为新站点的默认配置。如果启用了"允许各站点覆盖网络设置"，各站点可以独立修改这些设置。'; ?></p>
                                     </fieldset>
@@ -126,26 +176,6 @@ class WPComments_Network_Settings {
                     <?php submit_button('保存网络设置'); ?>
                 </form>
                 
-                <div class="wpcomments-network-info-box">
-                    <h3>网络设置说明</h3>
-                    <p>在多站点网络环境中，您可以通过此页面统一管理所有站点的 WP Comments 插件设置。</p>
-                    
-                    <h4>设置优先级</h4>
-                    <ul>
-                        <li><strong>网络强制模式：</strong>当"允许各站点覆盖网络设置"被禁用时，所有站点将强制使用网络级别的设置</li>
-                        <li><strong>站点自主模式：</strong>当"允许各站点覆盖网络设置"被启用时，各站点可以独立配置功能</li>
-                        <li><strong>默认继承：</strong>新创建的站点将继承网络级别的默认设置</li>
-                    </ul>
-                    
-                    <h4>功能说明</h4>
-                    <ul>
-                        <li><strong>评论增强：</strong>插件的核心功能开关</li>
-                        <li><strong>阿巴阿巴：</strong>将评论内容替换为"阿巴阿巴"</li>
-                        <li><strong>角色徽章：</strong>为不同用户角色显示徽章</li>
-                        <li><strong>删除待审评论：</strong>快速删除待审核的评论</li>
-                        <li><strong>评论置顶审核：</strong>将评论操作按钮置顶显示</li>
-                    </ul>
-                </div>
             </div>
         </div>
         <?php
@@ -162,19 +192,33 @@ class WPComments_Network_Settings {
         
         $disable_comments = isset($_POST['wpcomments_network_disable_comments']) ? (bool) $_POST['wpcomments_network_disable_comments'] : false;
         $allow_site_override = isset($_POST['wpcomments_network_allow_site_override']) ? (bool) $_POST['wpcomments_network_allow_site_override'] : false;
-        $enable_comments = isset($_POST['wpcomments_network_enable_comments']) ? (bool) $_POST['wpcomments_network_enable_comments'] : false;
+
         $enable_herpderp = isset($_POST['wpcomments_network_enable_herpderp']) ? (bool) $_POST['wpcomments_network_enable_herpderp'] : false;
         $enable_role_badge = isset($_POST['wpcomments_network_enable_role_badge']) ? (bool) $_POST['wpcomments_network_enable_role_badge'] : false;
         $enable_delete_pending = isset($_POST['wpcomments_network_enable_delete_pending']) ? (bool) $_POST['wpcomments_network_enable_delete_pending'] : false;
         $enable_sticky_moderate = isset($_POST['wpcomments_network_enable_sticky_moderate']) ? (bool) $_POST['wpcomments_network_enable_sticky_moderate'] : false;
+
+        $enable_remove_feed_link = isset($_POST['wpcomments_network_enable_remove_feed_link']) ? (bool) $_POST['wpcomments_network_enable_remove_feed_link'] : false;
+        $enable_remove_website_field = isset($_POST['wpcomments_network_enable_remove_website_field']) ? (bool) $_POST['wpcomments_network_enable_remove_website_field'] : false;
+        $enable_frequently_replies = isset($_POST['wpcomments_network_enable_frequently_replies']) ? (bool) $_POST['wpcomments_network_enable_frequently_replies'] : false;
+        $enable_validation = isset($_POST['wpcomments_network_enable_validation']) ? (bool) $_POST['wpcomments_network_enable_validation'] : false;
+        $enable_moderation_info = isset($_POST['wpcomments_network_enable_moderation_info']) ? (bool) $_POST['wpcomments_network_enable_moderation_info'] : false;
+        $enable_email_notification = isset($_POST['wpcomments_network_enable_email_notification']) ? (bool) $_POST['wpcomments_network_enable_email_notification'] : false;
         
         update_site_option('wpcomments_network_disable_comments', $disable_comments);
         update_site_option('wpcomments_network_allow_site_override', $allow_site_override);
-        update_site_option('wpcomments_network_enable_comments', $enable_comments);
+
         update_site_option('wpcomments_network_enable_herpderp', $enable_herpderp);
         update_site_option('wpcomments_network_enable_role_badge', $enable_role_badge);
         update_site_option('wpcomments_network_enable_delete_pending', $enable_delete_pending);
         update_site_option('wpcomments_network_enable_sticky_moderate', $enable_sticky_moderate);
+
+        update_site_option('wpcomments_network_enable_remove_feed_link', $enable_remove_feed_link);
+        update_site_option('wpcomments_network_enable_remove_website_field', $enable_remove_website_field);
+        update_site_option('wpcomments_network_enable_frequently_replies', $enable_frequently_replies);
+        update_site_option('wpcomments_network_enable_validation', $enable_validation);
+        update_site_option('wpcomments_network_enable_moderation_info', $enable_moderation_info);
+        update_site_option('wpcomments_network_enable_email_notification', $enable_email_notification);
         
         wp_redirect(add_query_arg(array('page' => $this->page_slug, 'updated' => 'true'), network_admin_url('settings.php')));
         exit;

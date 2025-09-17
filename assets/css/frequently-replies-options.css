@@ -1,0 +1,141 @@
+.wpcomments-frequently-replies-page .wrap {
+    max-width: 1200px;
+}
+
+.wpcomments-frequently-replies-page .page-title-action {
+    margin-left: 8px;
+}
+
+#replies-container {
+    margin-top: 20px;
+}
+
+.postbox.reply-item {
+    margin-bottom: 20px;
+}
+
+.postbox .postbox-header {
+    position: relative;
+}
+
+.postbox .postbox-header h2 {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.postbox .handlediv {
+    float: right;
+    width: 27px;
+    height: 30px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+}
+
+.postbox .handlediv .toggle-indicator:before {
+    content: '\f142';
+    font: 400 20px/1 dashicons;
+    color: #787c82;
+    display: inline-block;
+    padding: 8px 10px;
+    line-height: 1;
+}
+
+.postbox.closed .handlediv .toggle-indicator:before {
+    content: '\f140';
+}
+
+.postbox.closed .inside {
+    display: none;
+}
+
+.postbox .inside {
+    padding: 0;
+    margin: 0;
+}
+
+.postbox .form-table {
+    margin: 0;
+}
+
+.postbox .form-table th {
+    width: 120px;
+    padding: 15px 10px 15px 15px;
+    vertical-align: top;
+}
+
+.postbox .form-table td {
+    padding: 15px 15px 15px 10px;
+}
+
+.postbox .form-table input[type="text"] {
+    width: 100%;
+    max-width: 400px;
+}
+
+.postbox .form-table textarea {
+    width: 100%;
+    max-width: 600px;
+    min-height: 120px;
+}
+
+.postbox .description {
+    margin-top: 5px;
+    color: #646970;
+    font-style: italic;
+}
+
+.delete-reply-btn {
+    position: absolute;
+    top: 5px;
+    right: 35px;
+    color: #b32d2e;
+    text-decoration: none;
+    font-size: 16px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-reply-btn:hover {
+    color: #dc3232;
+}
+
+.delete-reply-btn .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+#add-reply-btn {
+    margin-top: 10px;
+}
+
+.wpcomments-frequently-replies-page .notice {
+    margin: 15px 0;
+}
+
+.wpcomments-frequently-replies-page .notice p {
+    margin: 0.5em 0;
+}
+
+@media (max-width: 768px) {
+    .postbox .form-table th {
+        width: 100px;
+        padding: 10px 5px 10px 10px;
+    }
+    
+    .postbox .form-table td {
+        padding: 10px 10px 10px 5px;
+    }
+    
+    .postbox .form-table input[type="text"],
+    .postbox .form-table textarea {
+        max-width: 100%;
+    }
+}

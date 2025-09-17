@@ -1,0 +1,226 @@
+.wpcomments-frequently-replies-page {
+    max-width: 1200px;
+}
+
+#replies-container {
+    margin-top: 20px;
+}
+
+.reply-item {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+}
+
+.reply-placeholder {
+    background: #f9f9f9;
+    border: 1px dashed #ccc;
+    margin-bottom: 15px;
+    min-height: 80px;
+}
+
+.reply-handle {
+    cursor: move;
+    color: #666;
+    padding: 4px;
+}
+
+.postbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+}
+
+.postbox-header h2 {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.reply-title-input {
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 14px;
+    color: #333;
+    width: 100%;
+    padding: 5px 8px;
+}
+
+.reply-title-input:focus {
+    border: 1px solid #0073aa;
+    outline: none;
+}
+
+.handle-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.handle-actions .button-link {
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.wpcomments-remove {
+    color: #d63638;
+    text-decoration: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #d63638;
+    background: transparent;
+}
+
+.wpcomments-remove:hover {
+    background-color: #d63638;
+    color: white;
+}
+
+.handle-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.postbox .inside {
+    padding: 15px;
+    background: #fff;
+}
+
+.reply-content-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.reply-content-textarea:focus {
+    border-color: #0073aa;
+    outline: none;
+}
+
+.preview-container {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.preview-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1d2327;
+}
+
+.preview-content strong {
+    font-weight: 600;
+}
+
+.preview-content em {
+    font-style: italic;
+}
+
+.preview-content code {
+    background: #f1f1f1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+}
+
+.preview-empty {
+    color: #646970;
+    font-style: italic;
+    margin: 0;
+}
+
+.add-new-reply {
+    padding: 8px 16px;
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.add-new-reply:hover {
+    background: #005a87;
+    color: #fff;
+}
+
+.enhanced-notification {
+    margin: 15px 0;
+}
+
+.form-actions {
+    margin-top: 20px;
+    padding: 15px 0;
+    border-top: 1px solid #ddd;
+}
+
+.submit-button {
+    padding: 8px 20px;
+    background: #00a32a;
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.submit-button:hover {
+    background: #008a20;
+}
+
+.auto-save-indicator {
+    color: #666;
+    font-size: 12px;
+}
+
+@media (max-width: 768px) {
+    .wpcomments-frequently-replies-page {
+        margin: 0 -20px;
+        padding: 0 20px;
+    }
+    
+    .postbox-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .postbox-header h2 {
+        order: 2;
+    }
+    
+    .handle-actions {
+        order: 1;
+        justify-content: flex-end;
+    }
+    
+    .reply-handle {
+        margin-right: 0;
+        margin-left: 8px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .add-new-reply,
+    .submit-button {
+        width: 100%;
+        justify-content: center;
+    }
+}
