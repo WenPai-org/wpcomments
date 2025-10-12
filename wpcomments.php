@@ -38,20 +38,22 @@ if ( ! defined( 'WPCOMMENTS_IS_NETWORK' ) ) {
 add_action( 'plugins_loaded', __NAMESPACE__ . '\init' );
 add_action( 'plugins_loaded', __NAMESPACE__ . '\load_textdomain' );
 add_action( 'admin_init', __NAMESPACE__ . '\register_general_settings_field' );
+add_action( 'wpcomments_reinit_features', __NAMESPACE__ . '\reinit_features' );
 
-// Load includes.
+// Load core functionality
+require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-core.php';
+require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-settings.php';
+require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-network-settings.php';
+
+// Load missing classes
 require_once WPCOMMENTS_PATH . 'includes/class-comment-author-role-badge.php';
+require_once WPCOMMENTS_PATH . 'includes/class-delete-pending-comments.php';
+require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-validation.php';
 
+// 保留必要的功能类
 $includes = array(
-	'class-delete-pending-comments.php',
-	'class-comments-sticky-moderate.php',
-	'class-wpcomments-settings.php',
 	'class-wpcomments-email-notification.php',
-	'class-wpcomments-network-settings.php',
-	'class-wpcomments-remove-feed-link.php',
-	'class-wpcomments-remove-website-field.php',
 	'class-wpcomments-frequently-replies.php',
-	'class-wpcomments-validation.php',
 	'class-wpcomments-moderation-info.php',
 );
 
@@ -71,46 +73,52 @@ foreach ( $includes as $include ) {
 function get_feature_settings(): array {
 	$defaults = array(
 		'comments_disabled'             => false,
-		'herpderp_enabled'              => false,
 		'role_badge_enabled'            => true,
 		'delete_pending_enabled'        => true,
-		'sticky_moderate_enabled'       => true,
-		'remove_feed_link_enabled'      => false,
 		'remove_website_field_enabled'  => false,
 		'frequently_replies_enabled'    => true,
 		'validation_enabled'            => true,
 		'moderation_info_enabled'       => true,
 		'email_notification_enabled'    => true,
+		'private_comments_enabled'      => true,
+		'comment_limiter_enabled'       => true,
+		'report_comments_enabled'       => false,
+		'sticky_comments_enabled'       => true,
+		'comment_analytics_enabled'     => true,
 	);
 
 	if ( WPCOMMENTS_IS_NETWORK && is_multisite() && class_exists( '\WPComments\WPComments_Network_Settings' ) ) {
 		return array(
 			'comments_disabled'             => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_network_disable_comments', $defaults['comments_disabled'] ),
-			'herpderp_enabled'              => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_herpderp', $defaults['herpderp_enabled'] ),
 			'role_badge_enabled'            => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_role_badge', $defaults['role_badge_enabled'] ),
 			'delete_pending_enabled'        => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_delete_pending', $defaults['delete_pending_enabled'] ),
-			'sticky_moderate_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_sticky_moderate', $defaults['sticky_moderate_enabled'] ),
-			'remove_feed_link_enabled'      => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_remove_feed_link', $defaults['remove_feed_link_enabled'] ),
 			'remove_website_field_enabled'  => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_remove_website_field', $defaults['remove_website_field_enabled'] ),
 			'frequently_replies_enabled'    => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_frequently_replies', $defaults['frequently_replies_enabled'] ),
 			'validation_enabled'            => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_validation', $defaults['validation_enabled'] ),
 			'moderation_info_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_moderation_info', $defaults['moderation_info_enabled'] ),
 			'email_notification_enabled'    => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_email_notification', $defaults['email_notification_enabled'] ),
+			'private_comments_enabled'      => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_private_comments', $defaults['private_comments_enabled'] ),
+			'comment_limiter_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled'] ),
+			'report_comments_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_report_comments', $defaults['report_comments_enabled'] ),
+			'sticky_comments_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled'] ),
+			'comment_analytics_enabled'     => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_comment_analytics', $defaults['comment_analytics_enabled'] ),
 		);
 	}
 
 	return array(
 		'comments_disabled'             => get_option( 'wpcomments_disable_comments', $defaults['comments_disabled'] ),
-		'herpderp_enabled'              => get_option( 'wpcomments_enable_herpderp', $defaults['herpderp_enabled'] ),
 		'role_badge_enabled'            => get_option( 'wpcomments_enable_role_badge', $defaults['role_badge_enabled'] ),
 		'delete_pending_enabled'        => get_option( 'wpcomments_enable_delete_pending', $defaults['delete_pending_enabled'] ),
-		'sticky_moderate_enabled'       => get_option( 'wpcomments_enable_sticky_moderate', $defaults['sticky_moderate_enabled'] ),
-		'remove_feed_link_enabled'      => get_option( 'wpcomments_enable_remove_feed_link', $defaults['remove_feed_link_enabled'] ),
 		'remove_website_field_enabled'  => get_option( 'wpcomments_enable_remove_website_field', $defaults['remove_website_field_enabled'] ),
 		'frequently_replies_enabled'    => get_option( 'wpcomments_enable_frequently_replies', $defaults['frequently_replies_enabled'] ),
 		'validation_enabled'            => get_option( 'wpcomments_enable_validation', $defaults['validation_enabled'] ),
 		'moderation_info_enabled'       => get_option( 'wpcomments_enable_moderation_info', $defaults['moderation_info_enabled'] ),
 		'email_notification_enabled'    => get_option( 'wpcomments_enable_email_notification', $defaults['email_notification_enabled'] ),
+		'private_comments_enabled'      => get_option( 'wpcomments_enable_private_comments', $defaults['private_comments_enabled'] ),
+		'comment_limiter_enabled'       => get_option( 'wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled'] ),
+		'report_comments_enabled'       => get_option( 'wpcomments_enable_report_comments', $defaults['report_comments_enabled'] ),
+		'sticky_comments_enabled'       => get_option( 'wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled'] ),
+		'comment_analytics_enabled'     => get_option( 'wpcomments_enable_comment_analytics', $defaults['comment_analytics_enabled'] ),
 	);
 }
 
@@ -130,58 +138,38 @@ function init(): void {
 	if ( $network_disable_comments || $site_disable_comments ) {
 		setup();
 	} else {
-		// Get feature settings.
+		// 初始化核心功能（已在 class-wpcomments-core.php 中处理）
+		// 核心类会根据设置自动加载相应功能
+		
+		// 初始化其他功能模块
 		$feature_settings = get_feature_settings();
+		
+		if ( $feature_settings['role_badge_enabled'] ) {
+			setup_role_badge();
+		}
 
-		$comments_disabled = apply_filters( 'wpcomments_disable_comments', $feature_settings['comments_disabled'] );
-		$herpderp_status   = apply_filters( 'wpcomments_enable_herpderp', $feature_settings['herpderp_enabled'] );
-		$role_badge_status = apply_filters( 'wpcomments_enable_role_badge', $feature_settings['role_badge_enabled'] );
+		if ( $feature_settings['delete_pending_enabled'] ) {
+			setup_delete_pending();
+		}
 
-		if ( $comments_disabled ) {
-			setup();
-		} else {
-			if ( $herpderp_status ) {
-				setup_herpderp();
-			}
-			if ( $role_badge_status ) {
-				setup_role_badge();
-			}
+		if ( $feature_settings['validation_enabled'] ) {
+			setup_validation();
+		}
+		
+		if ( $feature_settings['frequently_replies_enabled'] ) {
+			new \WPComments\WPComments_Frequently_Replies();
+		}
 
-			if ( $feature_settings['delete_pending_enabled'] ) {
-				setup_delete_pending();
-			}
+		if ( $feature_settings['moderation_info_enabled'] ) {
+			\WPComments\WPComments_Moderation_Info::get_instance();
+		}
 
-			if ( $feature_settings['sticky_moderate_enabled'] ) {
-				setup_sticky_moderate();
-			}
-
-			// Initialize new feature modules.
-			if ( $feature_settings['remove_feed_link_enabled'] ) {
-				new \WPComments\WPComments_Remove_Feed_Link();
-			}
-
-			if ( $feature_settings['remove_website_field_enabled'] ) {
-				new \WPComments\WPComments_Remove_Website_Field();
-			}
-
-			if ( $feature_settings['frequently_replies_enabled'] ) {
-				new \WPComments\WPComments_Frequently_Replies();
-			}
-
-			if ( $feature_settings['validation_enabled'] ) {
-				\WPComments\WPComments_Validation::get_instance();
-			}
-
-			if ( $feature_settings['moderation_info_enabled'] ) {
-				\WPComments\WPComments_Moderation_Info::get_instance();
-			}
-
-			if ( $feature_settings['email_notification_enabled'] ) {
-				new \WPComments\WPComments_Email_Notification();
-			}
+		if ( $feature_settings['email_notification_enabled'] ) {
+			new \WPComments\WPComments_Email_Notification();
 		}
 	}
 
+	// 管理界面
 	if ( is_admin() ) {
 		new \WPComments\WPComments_Settings();
 	}
@@ -258,6 +246,16 @@ function setup(): void {
 
 	// Disable XML-RPC comments.
 	add_filter( 'xmlrpc_methods', __NAMESPACE__ . '\disable_xmlrpc_comments' );
+	
+	// Enhanced comment disabling features from Comment-Free-Zone
+	add_action( 'init', __NAMESPACE__ . '\enhanced_comment_disabling', 99 );
+	add_filter( 'comments_template', __NAMESPACE__ . '\disable_comments_template', 20 );
+	add_filter( 'comments_number', '__return_empty_string' );
+	add_filter( 'get_default_comment_status', __NAMESPACE__ . '\force_closed_comment_status', 999 );
+	add_action( 'do_feed_rss2', __NAMESPACE__ . '\disable_comment_feeds', 1 );
+	add_action( 'do_feed_rss', __NAMESPACE__ . '\disable_comment_feeds', 1 );
+	add_action( 'pre_ping', __NAMESPACE__ . '\disable_outgoing_pings' );
+	add_filter( 'manage_pages_columns', __NAMESPACE__ . '\remove_comments_column_from_pages' );
 
 	// Hide dashboard comment widgets.
 	add_action( 'admin_head', __NAMESPACE__ . '\hide_dashboard_comment_widgets' );
@@ -363,7 +361,32 @@ function unregister_comment_blocks(): void
     foreach ($blocks as $block) {
         if (isset($registered_blocks[$block])) {
             unregister_block_type($block);
+            // Also filter the output to be empty as a fallback
+            add_filter('render_block_' . $block, '__return_empty_string');
         }
+    }
+    
+    // Enhanced block cleanup - handle blocks that might be registered later
+    $comment_block_patterns = [
+        'comment',
+        'comment-author-name',
+        'comment-content', 
+        'comment-date',
+        'comment-edit-link',
+        'comment-reply-link',
+        'comment-template',
+        'comments-pagination',
+        'comments-pagination-next',
+        'comments-pagination-numbers',
+        'comments-pagination-previous',
+        'comments-title',
+        'comments',
+        'latest-comments',
+        'post-comments-form',
+    ];
+    
+    foreach ($comment_block_patterns as $pattern) {
+        add_filter('render_block_core/' . $pattern, '__return_empty_string');
     }
 }
 
@@ -476,7 +499,19 @@ function is_network_wide(string $plugin_file): bool
  */
 function remove_rest_api_endpoints(array $endpoints): array
 {
-    unset($endpoints['comments']);
+    // Remove all comment-related endpoints
+    $comment_endpoints = [
+        '/wp/v2/comments',
+        '/wp/v2/comments/(?P<id>[\d]+)',
+        'comments'
+    ];
+    
+    foreach ($comment_endpoints as $endpoint) {
+        if (isset($endpoints[$endpoint])) {
+            unset($endpoints[$endpoint]);
+        }
+    }
+    
     return $endpoints;
 }
 
@@ -493,13 +528,16 @@ function disable_rest_api_comments($prepared_comment, \WP_REST_Request $request)
  }
 
 /**
- * Disable XML-RPC comments
+ * Disable XML-RPC comments and pingbacks
  */
 function disable_xmlrpc_comments(array $methods): array
 {
+    // Remove comment-related XML-RPC methods
     unset($methods['wp.newComment']);
-     return $methods;
- }
+    unset($methods['pingback.ping']);
+    
+    return $methods;
+}
 
 /**
  * Hide dashboard comment widgets with CSS
@@ -525,96 +563,85 @@ function remove_dashboard_comment_widgets(): void
 }
 
 /**
- * Setup Herp Derp functionality
+ * Enhanced comment disabling features
  */
-function setup_herpderp(): void
+function enhanced_comment_disabling(): void
 {
-    add_action('wp_enqueue_scripts', __NAMESPACE__ . '\herpderp_init');
-    add_action('wp_head', __NAMESPACE__ . '\herpderp_head');
-    add_filter('comment_text', __NAMESPACE__ . '\herpderp_comment_text', 40);
-    add_action('admin_init', __NAMESPACE__ . '\herpderp_admin_init');
-}
-
-/**
- * Setup Role Badge functionality
- */
-function setup_role_badge(): void
-{
-    new Comment_Author_Role_Badge();
-}
-
-/**
- * Setup Delete Pending Comments functionality
- */
-function setup_delete_pending(): void
-{
-    if (class_exists(__NAMESPACE__ . '\Delete_Pending_Comments')) {
-        new Delete_Pending_Comments();
+    // Clean up REST API schema for all post types
+    $post_types = get_post_types();
+    foreach ($post_types as $post_type) {
+        add_filter("rest_{$post_type}_item_schema", __NAMESPACE__ . '\cleanup_rest_api_schema');
+        add_filter('rest_prepare_' . $post_type, __NAMESPACE__ . '\cleanup_rest_prepare_post_type');
     }
 }
 
 /**
-  * Setup Sticky Moderate functionality
-  */
- function setup_sticky_moderate(): void
- {
-     if (class_exists(__NAMESPACE__ . '\Comments_Sticky_Moderate')) {
-         new Comments_Sticky_Moderate();
-     }
- }
-
-function herpderp_init(): void
+ * Remove comment_status and ping_status from REST API schema
+ */
+function cleanup_rest_api_schema($schema): array
 {
-    if (!is_singular() || is_feed() || !get_comments_number()) return;
-
-    $options = get_option('wpcomments_herpderp_settings') ?? null;
-    $def = $options ? $options['herp'] : false;
-
-    wp_register_script('wpcomments-herpderp',
-                      WPCOMMENTS_URL . 'herpderp.js',
-                      array(), WPCOMMENTS_VERSION, true);
-    wp_localize_script('wpcomments-herpderp', 'Derpfault', array('herp' => $def));
-    wp_enqueue_script('wpcomments-herpderp');
+    unset($schema['properties']['comment_status']);
+    unset($schema['properties']['ping_status']);
+    return $schema;
 }
 
-function herpderp_head(): void
+/**
+ * Remove replies link from REST API response
+ */
+function cleanup_rest_prepare_post_type($response)
 {
-    if (!is_singular() || is_feed() || !get_comments_number()) return;
-    ?>
-    <style type="text/css">
-     .herpderp { float: right; text-transform: uppercase;
-                 font-size: 7pt; font-weight: bold; }
-    </style>
-    <?php
+    $response->remove_link('replies');
+    return $response;
 }
 
-function herpderp_comment_text($text)
+/**
+ * Disable comments template
+ */
+function disable_comments_template(): string
 {
-    if (!is_singular() || is_feed() || !get_comments_number())
-        return $text;
-    return "<span class='herpc'>$text</span>";
+    return WPCOMMENTS_PATH . 'templates/blank-comments.php';
 }
 
-function herpderp_admin_init(): void
+/**
+ * Force closed comment status for new posts
+ */
+function force_closed_comment_status(): string
 {
-    register_setting('discussion', 'wpcomments_herpderp_settings', 'array');
-    add_settings_field('wpcomments-herpderp-default',
-                      'Herp Derp Default',
-                      __NAMESPACE__ . '\herpderp_setting_string',
-                      'discussion',
-                      'default');
+    return 'closed';
 }
 
-function herpderp_setting_string(): void
+/**
+ * Disable comment feeds
+ */
+function disable_comment_feeds(): void
 {
-    $options = get_option('wpcomments_herpderp_settings');
-    $def_toggle = $options ? $options['herp'] : false;
-
-    echo "<input id='wpcomments-herpderp-default'
-             name='wpcomments_herpderp_settings[herp]'
-             type='checkbox' value='herp' " . ($def_toggle ? ' checked' : '') .
-       ' /> ' . __('阿巴阿巴 on by default', 'wpcomments');
+    if (isset($_SERVER['REQUEST_URI']) && strpos(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), 'comments') !== false) {
+        wp_die(
+            esc_html__('Comments are disabled.', 'wpcomments'),
+            esc_html__('Comments Disabled', 'wpcomments'),
+            ['response' => 403]
+        );
+    }
 }
+
+/**
+ * Disable outgoing pings
+ */
+function disable_outgoing_pings(&$links): void
+{
+    $links = [];
+}
+
+/**
+ * Remove comments column from pages list
+ */
+function remove_comments_column_from_pages($columns): array
+{
+    unset($columns['comments']);
+    return $columns;
+}
+
+// 这些功能已合并到 WPComments_Core 类中
 
 /**
  * Load plugin textdomain
@@ -679,4 +706,63 @@ function render_general_settings_field(): void
         <?php endif; ?>
     </fieldset>
     <?php
+}
+
+/**
+ * Setup Role Badge functionality
+ */
+function setup_role_badge(): void
+{
+    new Comment_Author_Role_Badge();
+}
+
+/**
+ * Setup Delete Pending Comments functionality
+ */
+function setup_delete_pending(): void
+{
+    if (class_exists(__NAMESPACE__ . '\Delete_Pending_Comments')) {
+        new Delete_Pending_Comments();
+    }
+}
+
+
+
+/**
+ * Setup Validation functionality
+ */
+function setup_validation(): void
+{
+    if (class_exists(__NAMESPACE__ . '\WPComments_Validation')) {
+        WPComments_Validation::get_instance();
+    }
+}
+
+
+
+/**
+ * Reinitialize features after settings change
+ */
+function reinit_features(): void
+{
+    // 清除所有相关的钩子
+    remove_all_actions('wp_enqueue_scripts');
+    remove_all_actions('wp_head');
+    remove_all_filters('comment_text');
+    remove_all_actions('admin_init');
+    
+    // 重新初始化功能
+    $feature_settings = get_feature_settings();
+    
+    if ($feature_settings['role_badge_enabled']) {
+        setup_role_badge();
+    }
+
+    if ($feature_settings['delete_pending_enabled']) {
+        setup_delete_pending();
+    }
+
+    if ($feature_settings['validation_enabled']) {
+        setup_validation();
+    }
 }

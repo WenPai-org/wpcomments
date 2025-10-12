@@ -1,32 +1,15 @@
 <?php
-/**
- * Delete pending comments functionality.
- *
- * @package WPComments
- * @since   1.0.0
- */
 
 namespace WpComments;
 
-/**
- * Class Delete_Pending_Comments
- *
- * Handles deletion of pending comments functionality.
- */
 class Delete_Pending_Comments {
     
-	/**
-	 * Constructor.
-	 */
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_styles' ) );
 	}
 
-	/**
-	 * Load text domain for translations.
-	 */
 	public function load_textdomain() {
 		load_plugin_textdomain( 'wpcomments', false, dirname( plugin_basename( __FILE__ ) ) . '/../languages/' );
 	}

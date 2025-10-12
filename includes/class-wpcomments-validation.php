@@ -1,10 +1,4 @@
 <?php
-/**
- * Comment validation functionality.
- *
- * @package WPComments
- * @since   1.0.0
- */
 
 namespace WPComments;
 
@@ -12,11 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class WPComments_Validation
- *
- * Handles comment form validation functionality.
- */
 class WPComments_Validation {
     
     private static $instance = null;

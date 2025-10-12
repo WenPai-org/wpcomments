@@ -1,0 +1,677 @@
+/* WPComments 统一样式文件 - 合并所有功能样式 */
+
+/* ========== 管理界面基础样式 ========== */
+
+.wpcomments-settings .form-table th {
+    width: 220px;
+}
+
+.wpcomments-settings .description {
+    font-size: 13px;
+    margin: 2px 0 5px;
+    color: #666;
+}
+
+/* ========== 角色徽章样式 ========== */
+
+:root {
+    --wpcomments-carb-text-color: rgba(0, 0, 0, .6);
+    --wpcomments-carb-1: #c1e7f1;
+    --wpcomments-carb-2: #c1f1d1;
+    --wpcomments-carb-3: #fdf5c5;
+    --wpcomments-carb-4: #fdd8c5;
+    --wpcomments-carb-5: #e8e8e8;
+}
+
+.comment-author-role-badge {
+    display: inline-block;
+    padding: 3px 6px;
+    margin-left: .5em;
+    margin-right: .5em;
+    background: #e8e8e8;
+    border-radius: 2px;
+    color: var(--wpcomments-carb-text-color);
+    font-size: .75rem;
+    font-weight: normal;
+    text-transform: none;
+    text-align: left;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.widget .comment-author-role-badge {
+    display: none;
+}
+
+.comment-author-role-badge--administrator {
+    background: var(--wpcomments-carb-1);
+}
+
+.comment-author-role-badge--contributor {
+    background: var(--wpcomments-carb-2);
+}
+
+.comment-author-role-badge--author {
+    background: var(--wpcomments-carb-3);
+}
+
+.comment-author-role-badge--editor {
+    background: var(--wpcomments-carb-4);
+}
+
+.comment-author-role-badge--subscriber {
+    background: var(--wpcomments-carb-5);
+}
+
+.wp-block-comment-author-name .comment-author-role-badge {
+    display: inline-block;
+    margin-left: 0.5em;
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+
+/* ========== 表单验证样式 ========== */
+
+label.error {
+    display: block;
+    font-size: 14px;
+    color: #E15757;
+    margin-top: 5px;
+}
+
+input.error,
+textarea.error {
+    border: 1px solid #E15757;
+}
+
+input[type="text"].error:focus,
+input[type="email"].error:focus,
+input[type="url"].error:focus,
+input[type="password"].error:focus,
+input[type="search"].error:focus,
+input[type="number"].error:focus,
+input[type="tel"].error:focus,
+input[type="range"].error:focus,
+input[type="date"].error:focus,
+input[type="month"].error:focus,
+input[type="week"].error:focus,
+input[type="time"].error:focus,
+input[type="datetime"].error:focus,
+input[type="datetime-local"].error:focus,
+input[type="color"].error:focus,
+textarea.error:focus {
+    color: #495057;
+    background-color: #fff;
+    border-color: #E15757;
+    outline: 0;
+    -webkit-box-shadow: 0 0 0 0.2rem rgba(217, 43, 34, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(217, 43, 34, 0.25);
+}
+
+/* ========== 常用回复增强样式 ========== */
+
+.wpcomments-frequently-replies-page {
+    max-width: 1200px;
+}
+
+#replies-container {
+    margin-top: 20px;
+}
+
+.reply-item {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+}
+
+.reply-placeholder {
+    background: #f9f9f9;
+    border: 1px dashed #ccc;
+    margin-bottom: 15px;
+    min-height: 80px;
+}
+
+.reply-handle {
+    cursor: move;
+    color: #666;
+    padding: 4px;
+}
+
+.postbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+}
+
+.postbox-header h2 {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.reply-title-input {
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 14px;
+    color: #333;
+    width: 100%;
+    padding: 5px 8px;
+}
+
+.reply-title-input:focus {
+    border: 1px solid #0073aa;
+    outline: none;
+}
+
+.handle-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.handle-actions .button-link {
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.wpcomments-remove {
+    color: #d63638;
+    text-decoration: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #d63638;
+    background: transparent;
+}
+
+.wpcomments-remove:hover {
+    background-color: #d63638;
+    color: white;
+}
+
+.reply-content-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.reply-content-textarea:focus {
+    border-color: #0073aa;
+    outline: none;
+}
+
+.wpcomments-tabs-wrapper {
+    margin-bottom: 20px;
+}
+
+.wpcomments-sync-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    border-bottom: 1px solid #c3c4c7;
+    margin-bottom: 20px;
+}
+
+.wpcomments-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+}
+
+.wpcomments-tab.active {
+    border-bottom: 2px solid #007cba;
+    font-weight: 600;
+    background: #f0f0f1;
+}
+
+.wpcomments-tab:hover:not(.active) {
+    background: #f0f0f1;
+    border-bottom-color: #dcdcde;
+}
+
+.wpcomments-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-top: 20px;
+    padding: 20px;
+}
+
+.wpcomments-card h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.wpcomments-section-desc {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.wpcomments-stats-card {
+    background: #f9f9f9;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.wpcomments-stats-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.wpcomments-action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.wpcomments-submit-wrapper {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f1;
+}
+
+.wpcomments-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.wpcomments-switch input {
+    opacity: 0;
+    width: 0px;
+    height: 0;
+    min-width: 0;
+    margin: -.25rem -0.15rem 0 0;
+}
+
+.wpcomments-slider {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    background-color: #ccc;
+    border-radius: 34px;
+    transition: .4s;
+}
+
+.wpcomments-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+}
+
+.wpcomments-switch input:checked+.wpcomments-slider {
+    background-color: #2196F3;
+}
+
+.wpcomments-switch input:focus+.wpcomments-slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+.wpcomments-switch input:checked+.wpcomments-slider:before {
+    transform: translateX(20px);
+}
+
+.wpcomments-switch-label {
+    margin-left: 10px;
+}
+
+.wpcomments-radio {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.wpcomments-radio-label {
+    margin-left: 8px;
+}
+
+.wpcomments-input {
+    border: 1px solid #ddd;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.wpcomments-input:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+.wpcomments-select {
+    border: 1px solid #ddd;
+    padding: 6px 10px;
+    border-radius: 4px;
+    height: 36px;
+    min-width: 240px;
+}
+
+.wpcomments-select:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+/* 网络设置样式 */
+.wpcomments-network-notice {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 20px;
+}
+
+.wpcomments-network-notice .dashicons {
+    color: #856404;
+    margin-right: 5px;
+}
+
+/* 禁用状态样式 */
+.wpcomments-switch input:disabled + .wpcomments-slider {
+    background-color: #ddd !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.wpcomments-switch input:disabled + .wpcomments-slider:before {
+    background-color: #f5f5f5 !important;
+}
+
+.wpcomments-switch input:disabled ~ .wpcomments-switch-label {
+    color: #999;
+    cursor: not-allowed;
+}
+
+.wpcomments-switch:has(input:disabled) {
+    cursor: not-allowed;
+}
+
+.wpcomments-input:disabled,
+.wpcomments-select:disabled {
+    background-color: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.wpcomments-radio input:disabled ~ .wpcomments-radio-label {
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* 网络控制下的表单行样式 */
+tr:has(input:disabled) th {
+    color: #999;
+}
+
+tr:has(input:disabled) .description {
+    color: #aaa;
+}
+
+/* 网络控制选项样式 */
+.network-control-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 15px 0;
+}
+
+.option-group {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.option-group h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0073aa;
+    font-weight: 600;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.wpcomments-checkbox {
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.wpcomments-checkbox input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.wpcomments-checkbox-label {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Tab 导航样式 */
+.nav-tab-wrapper {
+    margin-bottom: 20px;
+}
+
+.nav-tab .dashicons {
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.wpcomments-tab-content {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+}
+
+/* 表单样式 */
+.form-table th {
+    width: 200px;
+    vertical-align: top;
+    padding-top: 15px;
+    font-weight: 600;
+}
+
+.form-table td {
+    padding-top: 10px;
+    padding-bottom: 15px;
+}
+
+.form-table td label {
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.form-table td p.description {
+    margin-top: 8px;
+    font-style: italic;
+    color: #666;
+}
+
+/* 常用回复样式 */
+.wpfr-container {
+    max-width: 800px;
+}
+
+.reply-item {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.reply-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.reply-title {
+    flex: 1;
+}
+
+.wpfr-remove {
+    color: #a00;
+    border-color: #a00;
+}
+
+.wpfr-remove:hover {
+    background: #a00;
+    color: #fff;
+}
+
+.reply-textarea {
+    width: 100%;
+    resize: vertical;
+}
+
+.wpfr-actions {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 10px;
+}
+
+#wpfr-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    display: none;
+}
+
+#wpfr-message.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+#wpfr-message.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* 网络设置专用样式 */
+.wpcomments-network-settings-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.wpcomments-network-settings-container form {
+    flex: 2;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+}
+
+.wpcomments-network-info-box {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    height: fit-content;
+}
+
+.wpcomments-network-info-box h3 {
+    margin-top: 0;
+    color: #23282d;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.wpcomments-network-info-box h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #0073aa;
+    font-weight: 600;
+}
+
+.wpcomments-network-info-box ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.wpcomments-network-info-box li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.wpcomments-network-info-box li strong {
+    color: #0073aa;
+}
+
+/* 通知样式 */
+.notice {
+    padding: 8px 12px;
+    border-radius: 3px;
+}
+
+.notice-success {
+    background-color: #dff0d8;
+    border-left: 4px solid #46b450;
+    padding: 1px 12px;
+}
+
+.notice-error {
+    background-color: #f2dede;
+    border-left: 4px solid #dc3232;
+}
+
+/* 响应式设计 */
+@media (max-width: 782px) {
+    .wpcomments-settings .form-table th {
+        width: 100%;
+    }
+
+    .wpcomments-action-buttons {
+        flex-direction: column;
+    }
+
+    .wpcomments-network-settings-container {
+        flex-direction: column;
+    }
+
+    .form-table th,
+    .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+
+    .form-table th {
+        border-bottom: none;
+    }
+}

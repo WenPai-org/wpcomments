@@ -118,6 +118,14 @@ class WPComments_Frequently_Replies {
     }
     
     public function enqueue_option_page_script() {
+        // 加载统一的管理界面样式
+        wp_enqueue_style(
+            'wpcomments-admin',
+            WPCOMMENTS_URL . 'assets/css/admin.css',
+            [],
+            WPCOMMENTS_VERSION
+        );
+        
         wp_enqueue_editor();
         wp_enqueue_script('postbox');
         wp_enqueue_script(
@@ -163,9 +171,14 @@ class WPComments_Frequently_Replies {
         $replies = get_option($this->option_name, array());
         $i = 0;
         ?>
-        <div class="wrap wpcomments-frequently-replies-page" id="wpcomments-frequently-replies">
-            <h1><?php echo esc_html__('常用回复列表', 'wpcomments'); ?></h1>
-            <p><?php echo esc_html__('在这里管理您的常用回复模板，可以在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
+        <div class="wrap wpcomments-settings wpcomments-frequently-replies-page" id="wpcomments-frequently-replies">
+            <h1><?php echo esc_html__('常用回复列表', 'wpcomments'); ?>
+                <a href="<?php echo admin_url('options-general.php?page=wpcomments-settings&tab=features'); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('返回设置', 'wpcomments'); ?></a>
+            </h1>
+            
+            <div class="wpcomments-card">
+                <h2><?php _e('管理常用回复模板', 'wpcomments'); ?></h2>
+                <p class="wpcomments-section-desc"><?php echo esc_html__('在这里管理您的常用回复模板，可以在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
             
             <form id="wpcomments-frequently-replies-form" name="wpcomments-frequently-replies-form" method="post">
                 
@@ -266,21 +279,24 @@ class WPComments_Frequently_Replies {
                     <p></p>
                 </div>
                 
-                <p class="submit">
+                <div class="wpcomments-submit-wrapper">
                     <input type="hidden" name="action" value="save_wpcomments_frequently_replies">
                     <?php wp_nonce_field('wpcomments-frequently-replies-nonce', 'wpcomments_nonce'); ?>
                     <?php wp_nonce_field('meta-box-order', 'meta-box-order-nonce', false); ?>
                     <input type="hidden" name="page" value="wpcomments-frequently-replies" />
                     
-                    <button type="button" class="button button-secondary" id="add-another-reply">
-                        <?php echo esc_html__('添加新回复', 'wpcomments'); ?>
-                    </button>
-                    
-                    <button id="save-options" class="button button-primary" type="submit">
-                        <?php echo esc_html__('保存所有回复', 'wpcomments'); ?>
-                    </button>
-                </p>
+                    <div class="wpcomments-action-buttons">
+                        <button type="button" class="button button-secondary" id="add-another-reply">
+                            <?php echo esc_html__('添加新回复', 'wpcomments'); ?>
+                        </button>
+                        
+                        <button id="save-options" class="button button-primary" type="submit">
+                            <?php echo esc_html__('保存所有回复', 'wpcomments'); ?>
+                        </button>
+                    </div>
+                </div>
             </form>
+            </div>
         </div>
         <?php
     }
