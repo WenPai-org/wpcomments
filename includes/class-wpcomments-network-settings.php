@@ -53,7 +53,6 @@ class WPComments_Network_Settings {
         $enable_comment_limiter = get_site_option('wpcomments_enable_comment_limiter', false);
         $enable_report_comments = get_site_option('wpcomments_enable_report_comments', false);
         $enable_sticky_comments = get_site_option('wpcomments_enable_sticky_comments', false);
-        $enable_comment_analytics = get_site_option('wpcomments_enable_comment_analytics', false);
         $allow_site_override = get_site_option('wpcomments_allow_site_override', true);
         $network_enabled = get_site_option('wpcomments_network_enabled', 1);
         $network_enforce = get_site_option('wpcomments_network_enforce', 0);
@@ -152,10 +151,12 @@ class WPComments_Network_Settings {
                                         'wpcomments_enable_private_comments' => __('私密评论功能', 'wpcomments'),
                                         'wpcomments_enable_comment_limiter' => __('评论字符限制', 'wpcomments'),
                                         'wpcomments_enable_report_comments' => __('评论举报系统', 'wpcomments'),
+                                        'wpcomments_report_logged_in_only' => __('仅登录用户可举报（受控）', 'wpcomments'),
+                                        'wpcomments_report_min_interval' => __('举报最小间隔（分钟）（受控）', 'wpcomments'),
+                                        'wpcomments_report_retention_days' => __('举报保留天数（受控）', 'wpcomments'),
+                                        'wpcomments_report_privacy_notice' => __('举报隐私提示（受控）', 'wpcomments'),
                                         'wpcomments_enable_sticky_comments' => __('置顶评论功能', 'wpcomments'),
-                                        'wpcomments_enable_comment_analytics' => __('评论统计分析', 'wpcomments'),
                                     ];
-
                                     // Group options by category
                                     $option_groups = [
                                         'basic' => [
@@ -172,7 +173,11 @@ class WPComments_Network_Settings {
                                             'title' => __('功能增强', 'wpcomments'),
                                             'options' => [
                                                 'wpcomments_enable_role_badge',
-                                                'wpcomments_enable_report_comments'
+                                                'wpcomments_enable_report_comments',
+                                                'wpcomments_report_logged_in_only',
+                                                'wpcomments_report_min_interval',
+                                                'wpcomments_report_retention_days',
+                                                'wpcomments_report_privacy_notice'
                                             ]
                                         ],
                                         'management' => [
@@ -181,8 +186,7 @@ class WPComments_Network_Settings {
                                                 'wpcomments_enable_delete_pending',
                                                 'wpcomments_enable_frequently_replies',
                                                 'wpcomments_enable_moderation_info',
-                                                'wpcomments_enable_sticky_comments',
-                                                'wpcomments_enable_comment_analytics'
+                                                'wpcomments_enable_sticky_comments'
                                             ]
                                         ],
                                         'notifications' => [
@@ -347,6 +351,33 @@ class WPComments_Network_Settings {
                                         <span class="wpcomments-switch-label"><?php _e('启用评论举报功能', 'wpcomments'); ?></span>
                                     </label>
                                     <p class="description"><?php _e('启用后，用户可以举报不当评论，当举报次数达到阈值时，评论将自动转为待审核状态。', 'wpcomments'); ?></p>
+
+                                    <fieldset style="margin-top:10px;">
+                                        <label>
+                                            <input type="hidden" name="wpcomments_report_logged_in_only" value="0">
+                                            <input type="checkbox" name="wpcomments_report_logged_in_only" value="1" <?php checked(get_site_option('wpcomments_report_logged_in_only', 0)); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                            <?php _e('仅登录用户可举报', 'wpcomments'); ?>
+                                        </label>
+                                        <p class="description"><?php _e('启用后，未登录用户将无法发起举报。', 'wpcomments'); ?></p>
+
+                                        <label>
+                                            <?php _e('最小举报间隔（分钟）', 'wpcomments'); ?>
+                                            <input type="number" name="wpcomments_report_min_interval" value="<?php echo esc_attr(get_site_option('wpcomments_report_min_interval', 10)); ?>" min="1" max="1440" class="small-text" <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                        </label>
+                                        <p class="description"><?php _e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
+
+                                        <label>
+                                            <?php _e('举报数据保留天数', 'wpcomments'); ?>
+                                            <input type="number" name="wpcomments_report_retention_days" value="<?php echo esc_attr(get_site_option('wpcomments_report_retention_days', 90)); ?>" min="1" max="3650" class="small-text" <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                        </label>
+                                        <p class="description"><?php _e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
+
+                                        <label>
+                                            <?php _e('举报隐私提示（支持 {days}）', 'wpcomments'); ?>
+                                            <input type="text" name="wpcomments_report_privacy_notice" value="<?php echo esc_attr(get_site_option('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments'))); ?>" class="regular-text" <?php echo $disable_comments ? 'disabled' : ''; ?> />
+                                        </label>
+                                        <p class="description"><?php _e('该提示用于举报按钮的提示文本与无障碍标签，{days} 将替换为保留天数。', 'wpcomments'); ?></p>
+                                    </fieldset>
                                 </td>
                             </tr>
                         </table>
@@ -521,20 +552,52 @@ class WPComments_Network_Settings {
                 
             case 'basic':
                 $disable_comments = isset($_POST['wpcomments_disable_comments']) ? (bool) $_POST['wpcomments_disable_comments'] : false;
-                $enable_validation = isset($_POST['wpcomments_enable_validation']) ? (bool) $_POST['wpcomments_enable_validation'] : false;
-                $enable_remove_website_field = isset($_POST['wpcomments_enable_remove_website_field']) ? (bool) $_POST['wpcomments_enable_remove_website_field'] : false;
                 $allow_site_override = isset($_POST['wpcomments_allow_site_override']) ? (bool) $_POST['wpcomments_allow_site_override'] : false;
-                
+
+                // 先保存禁用开关与覆盖策略
                 update_site_option('wpcomments_disable_comments', $disable_comments);
+                update_site_option('wpcomments_allow_site_override', $allow_site_override);
+
+                // 读取 POST 值（若未提交则保持现值），并在禁用评论时不覆盖原有设置
+                $current_validation = (bool) get_site_option('wpcomments_enable_validation', false);
+                $current_remove_website = (bool) get_site_option('wpcomments_enable_remove_website_field', false);
+                $current_private = (bool) get_site_option('wpcomments_enable_private_comments', false);
+                $current_limiter = (bool) get_site_option('wpcomments_enable_comment_limiter', false);
+
+                $enable_validation = isset($_POST['wpcomments_enable_validation']) ? (bool) $_POST['wpcomments_enable_validation'] : $current_validation;
+                $enable_remove_website_field = isset($_POST['wpcomments_enable_remove_website_field']) ? (bool) $_POST['wpcomments_enable_remove_website_field'] : $current_remove_website;
+                $enable_private_comments = isset($_POST['wpcomments_enable_private_comments']) ? (bool) $_POST['wpcomments_enable_private_comments'] : $current_private;
+                $enable_comment_limiter = isset($_POST['wpcomments_enable_comment_limiter']) ? (bool) $_POST['wpcomments_enable_comment_limiter'] : $current_limiter;
+
+                if ($disable_comments) {
+                    // 当网络禁用评论时，不更新这些从 UI 上被禁用的选项，避免被隐藏域的 0 覆盖
+                    $enable_validation = $current_validation;
+                    $enable_remove_website_field = $current_remove_website;
+                    $enable_private_comments = $current_private;
+                    $enable_comment_limiter = $current_limiter;
+                }
+
                 update_site_option('wpcomments_enable_validation', $enable_validation);
                 update_site_option('wpcomments_enable_remove_website_field', $enable_remove_website_field);
-                update_site_option('wpcomments_allow_site_override', $allow_site_override);
+                update_site_option('wpcomments_enable_private_comments', $enable_private_comments);
+                update_site_option('wpcomments_enable_comment_limiter', $enable_comment_limiter);
                 break;
                 
             case 'features':
                 $enable_role_badge = isset($_POST['wpcomments_enable_role_badge']) ? (bool) $_POST['wpcomments_enable_role_badge'] : false;
+                $enable_report_comments = isset($_POST['wpcomments_enable_report_comments']) ? (bool) $_POST['wpcomments_enable_report_comments'] : false;
+                $report_logged_in_only = isset($_POST['wpcomments_report_logged_in_only']) ? (bool) $_POST['wpcomments_report_logged_in_only'] : false;
+                $report_min_interval = isset($_POST['wpcomments_report_min_interval']) ? absint($_POST['wpcomments_report_min_interval']) : 10;
+                $report_retention_days = isset($_POST['wpcomments_report_retention_days']) ? absint($_POST['wpcomments_report_retention_days']) : 90;
                 
                 update_site_option('wpcomments_enable_role_badge', $enable_role_badge);
+                update_site_option('wpcomments_enable_report_comments', $enable_report_comments);
+                update_site_option('wpcomments_report_logged_in_only', $report_logged_in_only);
+                update_site_option('wpcomments_report_min_interval', $report_min_interval);
+                update_site_option('wpcomments_report_retention_days', $report_retention_days);
+                if (isset($_POST['wpcomments_report_privacy_notice'])) {
+                    update_site_option('wpcomments_report_privacy_notice', sanitize_text_field($_POST['wpcomments_report_privacy_notice']));
+                }
                 break;
                 
             case 'management':
@@ -578,14 +641,28 @@ class WPComments_Network_Settings {
         if (!is_multisite()) {
             return get_option($setting_name, $default);
         }
-        
-        $allow_override = get_site_option('wpcomments_network_allow_site_override', true);
-        
-        if (!$allow_override) {
-            $network_setting = str_replace('wpcomments_', 'wpcomments_network_', $setting_name);
-            return get_site_option($network_setting, $default);
+
+        // 网络级管理开关
+        $network_enabled = (bool) get_site_option('wpcomments_network_enabled', 1);
+        $network_enforce = (bool) get_site_option('wpcomments_network_enforce', 0);
+        $allow_override  = (bool) get_site_option('wpcomments_allow_site_override', true);
+
+        $controlled_options = get_site_option('wpcomments_network_controlled_options', array());
+        if (!is_array($controlled_options)) {
+            $controlled_options = explode(',', (string) $controlled_options);
         }
-        
+
+        // 完全强制或不允许覆盖：一律返回网络值
+        if ($network_enforce || !$allow_override) {
+            return get_site_option($setting_name, $default);
+        }
+
+        // 网络启用且该选项受控：返回网络值
+        if ($network_enabled && in_array($setting_name, $controlled_options, true)) {
+            return get_site_option($setting_name, $default);
+        }
+
+        // 其余情况：返回站点值
         return get_option($setting_name, $default);
     }
 }

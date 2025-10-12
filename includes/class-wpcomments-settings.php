@@ -40,6 +40,12 @@ class WPComments_Settings
      */
     private $option_group = 'wpcomments_settings';
 
+    // Separate option groups per tab to avoid cross-reset when saving via options.php
+    private $group_basic = 'wpcomments_settings_basic';
+    private $group_features = 'wpcomments_settings_features';
+    private $group_management = 'wpcomments_settings_management';
+    private $group_notifications = 'wpcomments_settings_notifications';
+
     /**
      * Page slug.
      *
@@ -52,10 +58,22 @@ class WPComments_Settings
      */
     public function __construct()
     {
+        // 多站点：仅当网络设置明确强制并且网络禁用评论时，才完全不加载站点设置页
         if (is_multisite()) {
-            $network_disable_comments = get_site_option('wpcomments_network_disable_comments', 0);
-            if ($network_disable_comments) {
-                return;
+            $network_enabled   = (bool) get_site_option('wpcomments_network_enabled', 1);
+            $network_enforce   = (bool) get_site_option('wpcomments_network_enforce', 0);
+            $allow_override    = (bool) get_site_option('wpcomments_allow_site_override', true);
+            $controlled_options = get_site_option('wpcomments_network_controlled_options', array());
+            if (!is_array($controlled_options)) {
+                $controlled_options = explode(',', (string) $controlled_options);
+            }
+
+            $network_controls_disable = ($network_enforce || !$allow_override || ($network_enabled && in_array('wpcomments_disable_comments', $controlled_options, true)));
+            if ($network_controls_disable) {
+                $network_disable_comments = (bool) get_site_option('wpcomments_disable_comments', 0);
+                if ($network_disable_comments) {
+                    return;
+                }
             }
         }
 
@@ -119,25 +137,23 @@ class WPComments_Settings
 
     public function register_settings()
     {
-        // 注册所有设置选项
-        $settings = array(
+        // 基础设置选项（Basic Tab）
+        $settings_basic = array(
             'wpcomments_disable_comments',
-            'wpcomments_enable_role_badge',
-            'wpcomments_enable_delete_pending',
-            'wpcomments_enable_remove_website_field',
-            'wpcomments_enable_frequently_replies',
             'wpcomments_enable_validation',
-            'wpcomments_enable_moderation_info',
-            'wpcomments_enable_email_notification',
+            'wpcomments_enable_remove_website_field',
             'wpcomments_enable_private_comments',
-            'wpcomments_enable_comment_limiter',
-            'wpcomments_enable_report_comments',
-            'wpcomments_enable_sticky_comments',
-            'wpcomments_enable_comment_analytics'
+            'wpcomments_enable_comment_limiter'
         );
-        
-        // 注册新功能的详细设置
-        register_setting($this->option_group, 'wpcomments_private_comment_options', array(
+        foreach ($settings_basic as $setting) {
+            register_setting($this->group_basic, $setting, array(
+                'type' => 'boolean',
+                'sanitize_callback' => array($this, 'sanitize_checkbox'),
+                'default' => false
+            ));
+        }
+        // 复杂数组选项（Basic Tab）
+        register_setting($this->group_basic, 'wpcomments_private_comment_options', array(
             'type' => 'array',
             'sanitize_callback' => array($this, 'sanitize_private_comment_options'),
             'default' => array(
@@ -145,8 +161,7 @@ class WPComments_Settings
                 'label_text' => __('Keep this comment private (visible to site owners only)', 'wpcomments')
             )
         ));
-        
-        register_setting($this->option_group, 'wpcomments_comment_limiter_options', array(
+        register_setting($this->group_basic, 'wpcomments_comment_limiter_options', array(
             'type' => 'array',
             'sanitize_callback' => array($this, 'sanitize_limiter_options'),
             'default' => array(
@@ -157,20 +172,66 @@ class WPComments_Settings
                 'enable_admin_feature' => 'no'
             )
         ));
-        
-        register_setting($this->option_group, 'wpcomments_report_threshold', array(
-            'type' => 'integer',
-            'sanitize_callback' => 'absint',
-            'default' => 3
-        ));
 
-        foreach ($settings as $setting) {
-            register_setting($this->option_group, $setting, array(
+        // 功能增强（Features Tab）
+        $settings_features = array(
+            'wpcomments_enable_role_badge',
+            'wpcomments_enable_report_comments'
+        );
+        foreach ($settings_features as $setting) {
+            register_setting($this->group_features, $setting, array(
                 'type' => 'boolean',
                 'sanitize_callback' => array($this, 'sanitize_checkbox'),
                 'default' => false
             ));
         }
+        register_setting($this->group_features, 'wpcomments_report_threshold', array(
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+            'default' => 3
+        ));
+        register_setting($this->group_features, 'wpcomments_report_privacy_notice', array(
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments')
+        ));
+        register_setting($this->group_features, 'wpcomments_report_logged_in_only', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_checkbox'),
+            'default' => false
+        ));
+        register_setting($this->group_features, 'wpcomments_report_min_interval', array(
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+            'default' => 10
+        ));
+        register_setting($this->group_features, 'wpcomments_report_retention_days', array(
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+            'default' => 90
+        ));
+
+        // 管理工具（Management Tab）
+        $settings_management = array(
+            'wpcomments_enable_delete_pending',
+            'wpcomments_enable_frequently_replies',
+            'wpcomments_enable_moderation_info',
+            'wpcomments_enable_sticky_comments'
+        );
+        foreach ($settings_management as $setting) {
+            register_setting($this->group_management, $setting, array(
+                'type' => 'boolean',
+                'sanitize_callback' => array($this, 'sanitize_checkbox'),
+                'default' => false
+            ));
+        }
+
+        // 通知设置（Notifications Tab）
+        register_setting($this->group_notifications, 'wpcomments_enable_email_notification', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_checkbox'),
+            'default' => false
+        ));
     }
 
     public function sanitize_checkbox($value)
@@ -207,6 +268,17 @@ class WPComments_Settings
      * 处理表单提交
      */
     public function handle_form_submission() {
+        // 如果使用了 WordPress Settings API（options.php 提交），不要在此拦截，避免覆盖和提前重定向
+        if (isset($_POST['option_page']) && in_array($_POST['option_page'], [
+            $this->group_basic,
+            $this->group_features,
+            $this->group_management,
+            $this->group_notifications,
+            $this->option_group // 兼容旧分组
+        ], true)) {
+            return;
+        }
+
         if (!isset($_POST['wpcomments_basic_nonce']) && !isset($_POST['wpcomments_features_nonce']) && 
             !isset($_POST['wpcomments_management_nonce']) && !isset($_POST['wpcomments_notifications_nonce']) && 
             !isset($_POST['wpcomments_advanced_nonce'])) {
@@ -315,7 +387,6 @@ class WPComments_Settings
         update_option('wpcomments_enable_frequently_replies', !empty($_POST['wpcomments_enable_frequently_replies']));
         update_option('wpcomments_enable_moderation_info', !empty($_POST['wpcomments_enable_moderation_info']));
         update_option('wpcomments_enable_sticky_comments', !empty($_POST['wpcomments_enable_sticky_comments']));
-        update_option('wpcomments_enable_comment_analytics', !empty($_POST['wpcomments_enable_comment_analytics']));
     }
     
     private function save_notifications_settings() {
@@ -381,8 +452,13 @@ class WPComments_Settings
                                         'wpcomments_enable_role_badge' => __('用户角色徽章', 'wpcomments'),
                                         'wpcomments_enable_delete_pending' => __('删除待审核评论', 'wpcomments'),
                                         'wpcomments_enable_frequently_replies' => __('常用回复功能', 'wpcomments'),
-                                        'wpcomments_enable_moderation_info' => __('评论审核信息', 'wpcomments'),
+'wpcomments_enable_moderation_info' => __('评论审核信息', 'wpcomments'),
                                         'wpcomments_enable_email_notification' => __('邮件通知功能', 'wpcomments'),
+                                        'wpcomments_enable_report_comments' => __('评论举报系统', 'wpcomments'),
+                                        'wpcomments_report_logged_in_only' => __('仅登录用户可举报', 'wpcomments'),
+                                        'wpcomments_report_min_interval' => __('举报最小间隔（分钟）', 'wpcomments'),
+                                        'wpcomments_report_retention_days' => __('举报数据保留天数', 'wpcomments'),
+                                        'wpcomments_report_privacy_notice' => __('举报隐私提示', 'wpcomments'),
                                         'wpcomments_enable_sticky_comments' => __('置顶评论功能', 'wpcomments'),
                                     ];
 
@@ -455,12 +531,13 @@ class WPComments_Settings
 
     ?>
         <form method="post" action="options.php" id="wpcomments-basic-form">
-            <?php settings_fields($this->option_group); ?>
+            <?php settings_fields($this->group_basic); ?>
             <table class="form-table">
                 <tr>
                     <th><?php _e('评论系统状态', 'wpcomments'); ?></th>
                     <td>
                         <label class="wpcomments-switch">
+                            <input type="hidden" name="wpcomments_disable_comments" value="0">
                             <input type="checkbox" name="wpcomments_disable_comments" value="1" <?php checked(get_option('wpcomments_disable_comments', false)); ?> <?php echo $network_disabled; ?>>
                             <span class="wpcomments-slider"></span>
                             <span class="wpcomments-switch-label"><?php _e('完全禁用评论功能', 'wpcomments'); ?></span>
@@ -475,7 +552,10 @@ class WPComments_Settings
                 <?php $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_comment_limiter')); ?>
             </table>
             
-            <?php if (get_option('wpcomments_enable_private_comments', false)): ?>
+            <?php $effective_private_enabled = class_exists('WPComments\\WPComments_Network_Settings') 
+                ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_enable_private_comments', get_option('wpcomments_enable_private_comments', false))
+                : get_option('wpcomments_enable_private_comments', false);
+            if ($effective_private_enabled): ?>
             <div class="wpcomments-stats-card">
                 <h3><?php _e('私密评论设置', 'wpcomments'); ?></h3>
                 <?php $private_options = get_option('wpcomments_private_comment_options', array()); ?>
@@ -502,7 +582,10 @@ class WPComments_Settings
             </div>
             <?php endif; ?>
             
-            <?php if (get_option('wpcomments_enable_comment_limiter', false)): ?>
+            <?php $effective_limiter_enabled = class_exists('WPComments\\WPComments_Network_Settings') 
+                ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_enable_comment_limiter', get_option('wpcomments_enable_comment_limiter', false))
+                : get_option('wpcomments_enable_comment_limiter', false);
+            if ($effective_limiter_enabled): ?>
             <div class="wpcomments-stats-card">
                 <h3><?php _e('评论字符限制设置', 'wpcomments'); ?></h3>
                 <?php $limiter_options = get_option('wpcomments_comment_limiter_options', array()); ?>
@@ -622,9 +705,6 @@ class WPComments_Settings
                     case 'wpcomments_enable_sticky_comments':
                         echo '启用置顶评论功能';
                         break;
-                    case 'wpcomments_enable_comment_analytics':
-                        echo '启用评论统计分析';
-                        break;
                 }
                 ?></th>
             <td>
@@ -664,9 +744,6 @@ class WPComments_Settings
                                                                 case 'wpcomments_enable_sticky_comments':
                                                                     echo '允许管理员置顶重要评论';
                                                                     break;
-                                                                case 'wpcomments_enable_comment_analytics':
-                                                                    echo '提供评论数据统计和分析';
-                                                                    break;
                                                             }
                                                             ?></span>
                 </label>
@@ -702,9 +779,6 @@ class WPComments_Settings
                                             case 'wpcomments_enable_sticky_comments':
                                                 echo '启用后，管理员可以将重要评论置顶显示，置顶评论将始终显示在评论列表的顶部。';
                                                 break;
-                                            case 'wpcomments_enable_comment_analytics':
-                                                echo '启用后，提供详细的评论统计数据、趋势分析和用户活跃度报告，帮助更好地了解网站评论情况。';
-                                                break;
                                         }
                                         ?></p>
             </td>
@@ -716,7 +790,7 @@ class WPComments_Settings
     {
     ?>
         <form method="post" action="options.php" id="wpcomments-features-form">
-            <?php settings_fields($this->option_group); ?>
+            <?php settings_fields($this->group_features); ?>
             <table class="form-table">
                 <?php
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_role_badge'));
@@ -724,7 +798,36 @@ class WPComments_Settings
                 ?>
             </table>
             
-            <?php if (get_option('wpcomments_enable_report_comments', false)): ?>
+            <?php 
+            $effective_report_enabled = class_exists('WPComments\\WPComments_Network_Settings') 
+                ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_enable_report_comments', get_option('wpcomments_enable_report_comments', false))
+                : get_option('wpcomments_enable_report_comments', false);
+            if ($effective_report_enabled): 
+                // 计算网络控制状态
+                $network_enabled = is_multisite() ? (bool) get_site_option('wpcomments_network_enabled', 1) : false;
+                $network_enforce = is_multisite() ? (bool) get_site_option('wpcomments_network_enforce', 0) : false;
+                $network_controlled_options = is_multisite() ? get_site_option('wpcomments_network_controlled_options', array()) : array();
+                if (!is_array($network_controlled_options)) {
+                    $network_controlled_options = explode(',', (string) $network_controlled_options);
+                }
+                $disabled_logged_in    = ($network_enforce || ($network_enabled && in_array('wpcomments_report_logged_in_only', $network_controlled_options, true))) ? 'disabled' : '';
+                $disabled_min_interval = ($network_enforce || ($network_enabled && in_array('wpcomments_report_min_interval', $network_controlled_options, true))) ? 'disabled' : '';
+                $disabled_retention    = ($network_enforce || ($network_enabled && in_array('wpcomments_report_retention_days', $network_controlled_options, true))) ? 'disabled' : '';
+                $disabled_privacy      = ($network_enforce || ($network_enabled && in_array('wpcomments_report_privacy_notice', $network_controlled_options, true))) ? 'disabled' : '';
+
+                $val_privacy = class_exists('WPComments\\WPComments_Network_Settings') 
+                    ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_privacy_notice', get_option('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments')))
+                    : get_option('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments'));
+                $val_logged_in = class_exists('WPComments\\WPComments_Network_Settings') 
+                    ? (bool) \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_logged_in_only', get_option('wpcomments_report_logged_in_only', 0))
+                    : (bool) get_option('wpcomments_report_logged_in_only', 0);
+                $val_min_interval = class_exists('WPComments\\WPComments_Network_Settings') 
+                    ? (int) \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_min_interval', get_option('wpcomments_report_min_interval', 10))
+                    : (int) get_option('wpcomments_report_min_interval', 10);
+                $val_retention = class_exists('WPComments\\WPComments_Network_Settings') 
+                    ? (int) \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_retention_days', get_option('wpcomments_report_retention_days', 90))
+                    : (int) get_option('wpcomments_report_retention_days', 90);
+            ?>
             <div class="wpcomments-stats-card">
                 <h3><?php _e('举报系统设置', 'wpcomments'); ?></h3>
                 <table class="form-table">
@@ -733,6 +836,40 @@ class WPComments_Settings
                         <td>
                             <input type="number" name="wpcomments_report_threshold" value="<?php echo esc_attr(get_option('wpcomments_report_threshold', 3)); ?>" min="1" max="10" class="small-text">
                             <p class="description"><?php _e('评论被举报多少次后自动转为待审核状态', 'wpcomments'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('举报隐私提示', 'wpcomments'); ?></th>
+                        <td>
+                            <input type="text" name="wpcomments_report_privacy_notice" value="<?php echo esc_attr($val_privacy); ?>" class="regular-text" <?php echo $disabled_privacy; ?> />
+                            <p class="description"><?php _e('用于“举报”按钮的悬浮提示与无障碍描述。支持 {days} 占位符，将被替换为保留天数。', 'wpcomments'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('仅登录用户可举报', 'wpcomments'); ?></th>
+                        <td>
+                            <label class="wpcomments-switch">
+                                <?php if (empty($disabled_logged_in)) : ?>
+                                    <input type="hidden" name="wpcomments_report_logged_in_only" value="0">
+                                <?php endif; ?>
+                                <input type="checkbox" name="wpcomments_report_logged_in_only" value="1" <?php checked($val_logged_in); ?> <?php echo $disabled_logged_in; ?>>
+                                <span class="wpcomments-slider"></span>
+                                <span class="wpcomments-switch-label"><?php _e('启用后，仅登录用户可发起举报', 'wpcomments'); ?></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('最小举报间隔（分钟）', 'wpcomments'); ?></th>
+                        <td>
+                            <input type="number" name="wpcomments_report_min_interval" value="<?php echo esc_attr($val_min_interval); ?>" min="1" max="1440" class="small-text" <?php echo $disabled_min_interval; ?>>
+                            <p class="description"><?php _e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('举报数据保留天数', 'wpcomments'); ?></th>
+                        <td>
+                            <input type="number" name="wpcomments_report_retention_days" value="<?php echo esc_attr($val_retention); ?>" min="1" max="3650" class="small-text" <?php echo $disabled_retention; ?>>
+                            <p class="description"><?php _e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -750,24 +887,41 @@ class WPComments_Settings
     {
     ?>
         <form method="post" action="options.php" id="wpcomments-management-form">
-            <?php settings_fields($this->option_group); ?>
+            <?php settings_fields($this->group_management); ?>
             <table class="form-table">
                 <?php
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_delete_pending'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_frequently_replies'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_moderation_info'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_sticky_comments'));
-                $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_comment_analytics'));
                 ?>
             </table>
 
-            <?php if (get_option('wpcomments_enable_frequently_replies', false)): ?>
+            <?php $effective_frequently_enabled = class_exists('WPComments\\WPComments_Network_Settings') 
+                ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_enable_frequently_replies', get_option('wpcomments_enable_frequently_replies', false))
+                : get_option('wpcomments_enable_frequently_replies', false);
+            if ($effective_frequently_enabled): ?>
                 <div class="wpcomments-stats-card">
                     <h3><?php _e('常用回复管理', 'wpcomments'); ?></h3>
                     <p><?php _e('管理您的常用回复模板，提高评论回复效率。', 'wpcomments'); ?></p>
                     <div class="wpcomments-action-buttons">
-                        <a href="<?php echo admin_url('options-general.php?page=wpcomments-frequently-replies'); ?>" class="button button-secondary">
+                        <a href="<?php echo admin_url('edit-comments.php?page=wpcomments-frequently-replies'); ?>" class="button button-secondary">
                             <?php _e('管理常用回复', 'wpcomments'); ?>
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php $effective_delete_pending_enabled = class_exists('WPComments\\WPComments_Network_Settings') 
+                ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_enable_delete_pending', get_option('wpcomments_enable_delete_pending', false))
+                : get_option('wpcomments_enable_delete_pending', false);
+            if ($effective_delete_pending_enabled): ?>
+                <div class="wpcomments-stats-card">
+                    <h3><?php _e('删除待审核评论', 'wpcomments'); ?></h3>
+                    <p><?php _e('批量删除站点内所有待审核状态的评论。', 'wpcomments'); ?></p>
+                    <div class="wpcomments-action-buttons">
+                        <a href="<?php echo admin_url('edit-comments.php?page=wpcomments-delete-pending'); ?>" class="button button-secondary">
+                            <?php _e('打开删除工具', 'wpcomments'); ?>
                         </a>
                     </div>
                 </div>

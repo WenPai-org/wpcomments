@@ -32,7 +32,6 @@ class WPComments_Email_Notification {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'admin_init'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_scripts'));
         add_action('wp_ajax_wpcomments_unsubscribe', array($this, 'ajax_unsubscribe'));
         add_action('wp_ajax_nopriv_wpcomments_unsubscribe', array($this, 'ajax_unsubscribe'));
     }
@@ -298,9 +297,13 @@ class WPComments_Email_Notification {
         
         add_filter('wp_mail_content_type', array($this, 'mail_content_type_filter'));
         
-        $from = $this->get_setting('wpcomments_email_from', '');
-        if (!empty($from)) {
+        $from_email = $this->get_setting('wpcomments_email_from_email', '');
+        $from_name  = $this->get_setting('wpcomments_email_from_name', '');
+        if (!empty($from_email)) {
             add_filter('wp_mail_from', array($this, 'mail_from_filter'));
+        }
+        if (!empty($from_name)) {
+            add_filter('wp_mail_from_name', array($this, 'mail_from_name_filter'));
         }
         
         $mail_sent = wp_mail($email, $subject, $body);
@@ -308,8 +311,11 @@ class WPComments_Email_Notification {
         do_action('wpcomments_after_notification_sent', $mail_sent, $email, $subject, $body, $parent_comment, $reply_comment, $post);
         
         remove_filter('wp_mail_content_type', array($this, 'mail_content_type_filter'));
-        if (!empty($from)) {
+        if (!empty($from_email)) {
             remove_filter('wp_mail_from', array($this, 'mail_from_filter'));
+        }
+        if (!empty($from_name)) {
+            remove_filter('wp_mail_from_name', array($this, 'mail_from_name_filter'));
         }
     }
     
@@ -328,9 +334,13 @@ class WPComments_Email_Notification {
         
         add_filter('wp_mail_content_type', array($this, 'mail_content_type_filter'));
         
-        $from = $this->get_setting('wpcomments_email_from', '');
-        if (!empty($from)) {
+        $from_email = $this->get_setting('wpcomments_email_from_email', '');
+        $from_name  = $this->get_setting('wpcomments_email_from_name', '');
+        if (!empty($from_email)) {
             add_filter('wp_mail_from', array($this, 'mail_from_filter'));
+        }
+        if (!empty($from_name)) {
+            add_filter('wp_mail_from_name', array($this, 'mail_from_name_filter'));
         }
         
         $mail_sent = wp_mail($admin_email, $subject, $body);
@@ -338,8 +348,11 @@ class WPComments_Email_Notification {
         do_action('wpcomments_after_admin_notification_sent', $mail_sent, $admin_email, $subject, $body, $comment, $post);
         
         remove_filter('wp_mail_content_type', array($this, 'mail_content_type_filter'));
-        if (!empty($from)) {
+        if (!empty($from_email)) {
             remove_filter('wp_mail_from', array($this, 'mail_from_filter'));
+        }
+        if (!empty($from_name)) {
+            remove_filter('wp_mail_from_name', array($this, 'mail_from_name_filter'));
         }
     }
     
@@ -389,9 +402,9 @@ class WPComments_Email_Notification {
     }
     
     private function get_email_subject($post) {
-        $subject_type = $this->get_setting('wpcomments_email_subject_type', 1);
+        $subject_type = $this->get_setting('wpcomments_email_subject_type', 'default');
         
-        if ($subject_type == 2) {
+        if ($subject_type === 'custom') {
             $custom_subject = $this->get_setting('wpcomments_email_custom_subject', '');
             if (!empty($custom_subject)) {
                 return $custom_subject;
@@ -454,8 +467,14 @@ class WPComments_Email_Notification {
         return 'text/html';
     }
     
-    public function mail_from_filter($content_type) {
-        return $this->get_setting('wpcomments_email_from', '');
+    public function mail_from_filter($email) {
+        $from_email = $this->get_setting('wpcomments_email_from_email', '');
+        return !empty($from_email) ? $from_email : $email;
+    }
+    
+    public function mail_from_name_filter($name) {
+        $from_name = $this->get_setting('wpcomments_email_from_name', '');
+        return !empty($from_name) ? $from_name : $name;
     }
     
     public function get_unsubscribe_link($comment) {
@@ -479,15 +498,15 @@ class WPComments_Email_Notification {
     }
     
     public function get_default_checked() {
-        return $this->get_setting('wpcomments_email_subscription_check_by_default', true);
+        return (bool) $this->get_setting('wpcomments_email_default_subscribe', 0);
     }
     
     public function get_display_gdpr_notice() {
-        return $this->get_setting('wpcomments_email_display_gdpr_notice', false);
+        return (bool) $this->get_setting('wpcomments_email_gdpr_enabled', 0);
     }
     
     public function get_privacy_policy_url() {
-        return $this->get_setting('wpcomments_email_privacy_policy_url', '');
+        return $this->get_setting('wpcomments_email_privacy_url', '');
     }
     
     public function render_gdpr_notice() {
@@ -557,8 +576,8 @@ class WPComments_Email_Notification {
     
     public function enqueue_admin_scripts($hook) {
         if (strpos($hook, 'wpcomments') !== false) {
-            wp_enqueue_style('wpcomments-admin', plugin_dir_url(__FILE__) . '../assets/admin.css', array(), self::VERSION);
-            wp_enqueue_script('wpcomments-admin', plugin_dir_url(__FILE__) . '../assets/admin.js', array('jquery'), self::VERSION, true);
+            wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), self::VERSION);
+            wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), self::VERSION, true);
         }
     }
     

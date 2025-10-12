@@ -40,15 +40,28 @@ add_action( 'plugins_loaded', __NAMESPACE__ . '\load_textdomain' );
 add_action( 'admin_init', __NAMESPACE__ . '\register_general_settings_field' );
 add_action( 'wpcomments_reinit_features', __NAMESPACE__ . '\reinit_features' );
 
+// Activation: create reports table and schedule cleanup
+register_activation_hook( WPCOMMENTS_PLUGIN_FILE, __NAMESPACE__ . '\activate_wpcomments' );
+add_action( 'wpcomments_cleanup_reports', __NAMESPACE__ . '\cleanup_old_reports' );
+
 // Load core functionality
 require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-core.php';
 require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-settings.php';
 require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-network-settings.php';
+require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-modules.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-frequently-replies.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-report.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-sticky.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-moderation-info.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-email-notification.php';
+// Additional feature modules
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-role-badge.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-validation.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-private-comments.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-remove-website-field.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-comment-limiter.php';
+require_once WPCOMMENTS_PATH . 'includes/modules/class-module-delete-pending.php';
 
-// Load missing classes
-require_once WPCOMMENTS_PATH . 'includes/class-comment-author-role-badge.php';
-require_once WPCOMMENTS_PATH . 'includes/class-delete-pending-comments.php';
-require_once WPCOMMENTS_PATH . 'includes/class-wpcomments-validation.php';
 
 // 保留必要的功能类
 $includes = array(
@@ -84,12 +97,11 @@ function get_feature_settings(): array {
 		'comment_limiter_enabled'       => true,
 		'report_comments_enabled'       => false,
 		'sticky_comments_enabled'       => true,
-		'comment_analytics_enabled'     => true,
 	);
 
-	if ( WPCOMMENTS_IS_NETWORK && is_multisite() && class_exists( '\WPComments\WPComments_Network_Settings' ) ) {
+if ( is_multisite() ) {
 		return array(
-			'comments_disabled'             => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_network_disable_comments', $defaults['comments_disabled'] ),
+			'comments_disabled'             => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_disable_comments', $defaults['comments_disabled'] ),
 			'role_badge_enabled'            => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_role_badge', $defaults['role_badge_enabled'] ),
 			'delete_pending_enabled'        => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_delete_pending', $defaults['delete_pending_enabled'] ),
 			'remove_website_field_enabled'  => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_remove_website_field', $defaults['remove_website_field_enabled'] ),
@@ -101,7 +113,6 @@ function get_feature_settings(): array {
 			'comment_limiter_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled'] ),
 			'report_comments_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_report_comments', $defaults['report_comments_enabled'] ),
 			'sticky_comments_enabled'       => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled'] ),
-			'comment_analytics_enabled'     => \WPComments\WPComments_Network_Settings::get_effective_setting( 'wpcomments_enable_comment_analytics', $defaults['comment_analytics_enabled'] ),
 		);
 	}
 
@@ -118,7 +129,6 @@ function get_feature_settings(): array {
 		'comment_limiter_enabled'       => get_option( 'wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled'] ),
 		'report_comments_enabled'       => get_option( 'wpcomments_enable_report_comments', $defaults['report_comments_enabled'] ),
 		'sticky_comments_enabled'       => get_option( 'wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled'] ),
-		'comment_analytics_enabled'     => get_option( 'wpcomments_enable_comment_analytics', $defaults['comment_analytics_enabled'] ),
 	);
 }
 
@@ -128,54 +138,41 @@ function get_feature_settings(): array {
  * @since 2.0.0
  */
 function init(): void {
-	$network_disable_comments = false;
-	if ( is_multisite() ) {
-		$network_disable_comments = get_site_option( 'wpcomments_network_disable_comments', false );
-	}
+	// 计算有效设置：用于决定当前运行模式
+	$feature_settings = get_feature_settings();
+	$comments_disabled = ! empty( $feature_settings['comments_disabled'] );
 
-	$site_disable_comments = get_option( 'wpcomments_disable_comments', false );
-
-	if ( $network_disable_comments || $site_disable_comments ) {
+	if ( $comments_disabled ) {
+		// 模式一：禁用模式，仅加载禁用评论逻辑
 		setup();
 	} else {
-		// 初始化核心功能（已在 class-wpcomments-core.php 中处理）
-		// 核心类会根据设置自动加载相应功能
-		
-		// 初始化其他功能模块
-		$feature_settings = get_feature_settings();
-		
-		if ( $feature_settings['role_badge_enabled'] ) {
-			setup_role_badge();
-		}
+		// 模式二：增强模式，按需加载核心与模块
+		new \WPComments\WPComments_Core();
 
-		if ( $feature_settings['delete_pending_enabled'] ) {
-			setup_delete_pending();
-		}
-
-		if ( $feature_settings['validation_enabled'] ) {
-			setup_validation();
-		}
-		
-		if ( $feature_settings['frequently_replies_enabled'] ) {
-			new \WPComments\WPComments_Frequently_Replies();
-		}
-
-		if ( $feature_settings['moderation_info_enabled'] ) {
-			\WPComments\WPComments_Moderation_Info::get_instance();
-		}
-
-		if ( $feature_settings['email_notification_enabled'] ) {
-			new \WPComments\WPComments_Email_Notification();
-		}
+		// 模块管理器：注册需要的模块并启动
+		$manager = new \WPComments\WPComments_Module_Manager();
+$manager
+			->register_module( new \WPComments\Modules\Frequently_Replies_Module() )
+			->register_module( new \WPComments\Modules\Report_Module() )
+			->register_module( new \WPComments\Modules\Sticky_Module() )
+			->register_module( new \WPComments\Modules\Moderation_Info_Module() )
+			->register_module( new \WPComments\Modules\Email_Notification_Module() )
+			->register_module( new \WPComments\Modules\Role_Badge_Module() )
+			->register_module( new \WPComments\Modules\Validation_Module() )
+			->register_module( new \WPComments\Modules\Private_Comments_Module() )
+			->register_module( new \WPComments\Modules\Comment_Limiter_Module() )
+			->register_module( new \WPComments\Modules\Delete_Pending_Module() )
+			->register_module( new \WPComments\Modules\Remove_Website_Field_Module() );
+		$manager->boot( $feature_settings );
 	}
 
 	// 管理界面
 	if ( is_admin() ) {
-		new \WPComments\WPComments_Settings();
+new \WPComments\WPComments_Settings();
 	}
 
 	if ( is_multisite() && is_network_admin() ) {
-		new \WPComments\WPComments_Network_Settings();
+new \WPComments\WPComments_Network_Settings();
 	}
 }
 
@@ -309,14 +306,22 @@ function remove_trackback_support(): void {
  */
 function unregister_comment_blocks_javascript(): void
 {
-    $asset_data = include_once __DIR__ . "/build/index.asset.php";
+    $asset_path = WPCOMMENTS_PATH . 'build/index.asset.php';
+    $script_path = WPCOMMENTS_URL . 'build/index.js';
+    if (!file_exists($asset_path)) {
+        return;
+    }
+    $asset_data = include $asset_path;
+    if (!is_array($asset_data) || empty($asset_data['dependencies']) || empty($asset_data['version'])) {
+        return;
+    }
 
     wp_enqueue_script(
-        "wpcomments",
-        plugin_dir_url(__FILE__) . "/build/index.js",
-        $asset_data["dependencies"],
-        $asset_data["version"],
-        true,
+        'wpcomments',
+        $script_path,
+        $asset_data['dependencies'],
+        $asset_data['version'],
+        true
     );
 }
 
@@ -366,28 +371,6 @@ function unregister_comment_blocks(): void
         }
     }
     
-    // Enhanced block cleanup - handle blocks that might be registered later
-    $comment_block_patterns = [
-        'comment',
-        'comment-author-name',
-        'comment-content', 
-        'comment-date',
-        'comment-edit-link',
-        'comment-reply-link',
-        'comment-template',
-        'comments-pagination',
-        'comments-pagination-next',
-        'comments-pagination-numbers',
-        'comments-pagination-previous',
-        'comments-title',
-        'comments',
-        'latest-comments',
-        'post-comments-form',
-    ];
-    
-    foreach ($comment_block_patterns as $pattern) {
-        add_filter('render_block_core/' . $pattern, '__return_empty_string');
-    }
 }
 
 /**
@@ -664,7 +647,7 @@ function register_general_settings_field(): void
 
     add_settings_field(
         'wpcomments-disable-comments',
-        '禁用评论',
+        __('禁用评论', 'wpcomments'),
         __NAMESPACE__ . '\render_general_settings_field',
         'general'
     );
@@ -677,13 +660,13 @@ function render_general_settings_field(): void
 {
     $network_disabled = false;
     $disabled_attr = '';
-    $description = '启用后将完全禁用WordPress的评论系统，包括前台显示和后台管理。';
+    $description = __('启用后将完全禁用WordPress的评论系统，包括前台显示和后台管理。', 'wpcomments');
     
     if (is_multisite()) {
-        $network_disabled = get_site_option('wpcomments_network_disable_comments', false);
+        $network_disabled = get_site_option('wpcomments_disable_comments', false);
         if ($network_disabled) {
             $disabled_attr = 'disabled="disabled"';
-            $description = '评论功能已在网络级别被禁用，无法在此站点单独启用。';
+            $description = __('评论功能已在网络级别被禁用，无法在此站点单独启用。', 'wpcomments');
         }
     }
     
@@ -694,49 +677,24 @@ function render_general_settings_field(): void
     ?>
     <fieldset>
         <legend class="screen-reader-text">
-            <span>禁用评论</span>
+            <span><?php echo esc_html__('禁用评论', 'wpcomments'); ?></span>
         </legend>
         <label for="wpcomments_disable_comments">
             <input <?php checked(true, $value); ?> name="wpcomments_disable_comments" type="checkbox" id="wpcomments_disable_comments" value="1" <?php echo $disabled_attr; ?>>
-            完全禁用此站点的评论功能
+            <?php echo esc_html__('完全禁用此站点的评论功能', 'wpcomments'); ?>
         </label>
-        <p class="description"><?php echo $description; ?></p>
+        <p class="description"><?php echo esc_html($description); ?></p>
         <?php if ($network_disabled): ?>
-        <p class="description">此设置由网络管理员控制。</p>
+        <p class="description"><?php echo esc_html__('此设置由网络管理员控制。', 'wpcomments'); ?></p>
         <?php endif; ?>
     </fieldset>
     <?php
 }
 
-/**
- * Setup Role Badge functionality
- */
-function setup_role_badge(): void
-{
-    new Comment_Author_Role_Badge();
-}
-
-/**
- * Setup Delete Pending Comments functionality
- */
-function setup_delete_pending(): void
-{
-    if (class_exists(__NAMESPACE__ . '\Delete_Pending_Comments')) {
-        new Delete_Pending_Comments();
-    }
-}
 
 
 
-/**
- * Setup Validation functionality
- */
-function setup_validation(): void
-{
-    if (class_exists(__NAMESPACE__ . '\WPComments_Validation')) {
-        WPComments_Validation::get_instance();
-    }
-}
+
 
 
 
@@ -745,24 +703,65 @@ function setup_validation(): void
  */
 function reinit_features(): void
 {
-    // 清除所有相关的钩子
-    remove_all_actions('wp_enqueue_scripts');
-    remove_all_actions('wp_head');
-    remove_all_filters('comment_text');
-    remove_all_actions('admin_init');
-    
-    // 重新初始化功能
-    $feature_settings = get_feature_settings();
-    
-    if ($feature_settings['role_badge_enabled']) {
-        setup_role_badge();
-    }
+    // 触发可选的重新初始化钩子，避免重复挂载或全局清理
+    do_action('wpcomments_reinit', get_feature_settings());
+}
 
-    if ($feature_settings['delete_pending_enabled']) {
-        setup_delete_pending();
+/**
+ * Activation callback: create reports table and schedule cleanup
+ */
+function activate_wpcomments( $network_wide ) : void {
+    if ( is_multisite() && $network_wide ) {
+        $sites = get_sites( array( 'fields' => 'ids' ) );
+        foreach ( $sites as $site_id ) {
+            switch_to_blog( (int) $site_id );
+            wpcomments_create_reports_table();
+            wpcomments_schedule_cleanup();
+            restore_current_blog();
+        }
+    } else {
+        wpcomments_create_reports_table();
+        wpcomments_schedule_cleanup();
     }
+}
 
-    if ($feature_settings['validation_enabled']) {
-        setup_validation();
+/**
+ * Create reports table (hashed IP)
+ */
+function wpcomments_create_reports_table() : void {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'wpcomments_reports';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        comment_id bigint(20) unsigned NOT NULL,
+        user_id bigint(20) unsigned NULL,
+        user_ip varchar(45) NOT NULL,
+        report_time datetime NOT NULL,
+        PRIMARY KEY (id),
+        KEY comment_id (comment_id),
+        KEY user_id (user_id),
+        KEY user_ip (user_ip)
+    ) {$charset_collate};";
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql );
+}
+
+/**
+ * Schedule daily cleanup for old reports
+ */
+function wpcomments_schedule_cleanup() : void {
+    if ( ! wp_next_scheduled( 'wpcomments_cleanup_reports' ) ) {
+        wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', 'wpcomments_cleanup_reports' );
     }
+}
+
+/**
+ * Cleanup old reports older than retention days (default 90)
+ */
+function cleanup_old_reports() : void {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'wpcomments_reports';
+    $days = (int) (class_exists('WPComments\\WPComments_Network_Settings') ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_retention_days', apply_filters('wpcomments_report_retention_days', 90)) : get_option('wpcomments_report_retention_days', apply_filters('wpcomments_report_retention_days', 90)));
+    $wpdb->query( $wpdb->prepare( "DELETE FROM {$table_name} WHERE report_time < ( NOW() - INTERVAL %d DAY )", $days ) );
 }

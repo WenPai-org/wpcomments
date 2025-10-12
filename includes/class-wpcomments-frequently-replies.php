@@ -50,7 +50,8 @@ class WPComments_Frequently_Replies {
     }
     
     public function enqueue_assets($hook) {
-        if ('comments_page_wpcomments-frequently-replies' === $hook) {
+        // Only load on comments admin screens where quick reply or reply workflows exist
+        if ($hook !== 'edit-comments.php' && $hook !== 'comment.php') {
             return;
         }
         
@@ -74,9 +75,9 @@ class WPComments_Frequently_Replies {
         
         foreach ($replies_list as $reply) {
             $replies[] = array(
-                'slug' => esc_attr($reply['slug']),
-                'title' => esc_attr($reply['title']),
-                'content' => $this->sanitize_reply($reply['content']),
+                'slug' => esc_attr($reply['slug'] ?? ''),
+                'title' => esc_attr($reply['title'] ?? ''),
+                'content' => $this->sanitize_reply($reply['content'] ?? ''),
             );
         }
         
@@ -109,12 +110,6 @@ class WPComments_Frequently_Replies {
             WPCOMMENTS_VERSION
         );
         
-        wp_enqueue_style(
-            'wpcomments-enhanced-admin',
-            WPCOMMENTS_URL . 'assets/css/enhanced-admin.css',
-            array(),
-            WPCOMMENTS_VERSION
-        );
     }
     
     public function enqueue_option_page_script() {
@@ -136,13 +131,6 @@ class WPComments_Frequently_Replies {
             true
         );
         
-        wp_enqueue_script(
-            'wpcomments-enhanced-admin',
-            WPCOMMENTS_URL . 'assets/js/enhanced-admin.js',
-            array('jquery', 'jquery-ui-sortable', 'postbox'),
-            WPCOMMENTS_VERSION,
-            true
-        );
         
         $option_page_localized = array(
             'ajaxurl' => admin_url('admin-ajax.php'),

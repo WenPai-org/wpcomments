@@ -21,10 +21,25 @@ if (!defined('ABSPATH')) {
  */
 class WPComments_Core {
     
+    /** @var self|null */
+    private static $instance = null;
+
+    /** @var bool */
+    private $report_registered = false;
+    /** @var bool */
+    private $sticky_registered = false;
+
+    /**
+     * Track which comments already received a report link via reply area to avoid duplicate fallback in content.
+     * @var array<int,bool>
+     */
+    private $report_links_output = array();
+
     /**
      * 构造函数
      */
     public function __construct() {
+        self::$instance = $this;
         $this->init_hooks();
         $this->load_features();
     }
@@ -44,55 +59,17 @@ class WPComments_Core {
     private function load_features() {
         $settings = \WPComments\get_feature_settings();
         
-        // 角色徽章功能
-        if ($settings['role_badge_enabled']) {
-            $this->init_role_badge();
-        }
+        // 模块初始化由模块管理器负责，核心不直接在此初始化
         
-        // 删除待审核评论功能
-        if ($settings['delete_pending_enabled']) {
-            $this->init_delete_pending();
-        }
-        
-
-        
-        // 移除网站链接字段功能
-        if ($settings['remove_website_field_enabled']) {
-            $this->init_remove_website_field();
-        }
-        
-        // 评论表单验证功能
-        if ($settings['validation_enabled']) {
-            $this->init_validation();
-        }
-        
-        // 私密评论功能
-        if ($settings['private_comments_enabled']) {
-            $this->init_private_comments();
-        }
-        
-        // 评论字符限制功能
-        if ($settings['comment_limiter_enabled']) {
-            $this->init_comment_limiter();
-        }
-        
-        // 评论举报功能
-        if ($settings['report_comments_enabled']) {
-            $this->init_report_comments();
-        }
-        
-        // 置顶评论功能
-        if ($settings['sticky_comments_enabled']) {
-            $this->init_sticky_comments();
-        }
-        
-        // 评论统计分析功能
-        if ($settings['comment_analytics_enabled']) {
-            $this->init_comment_analytics();
-        }
-
     }
-    
+
+    /**
+     * 获取核心实例（供模块调用）
+     */
+    public static function get_instance(): ?self {
+        return self::$instance;
+    }
+
     /**
      * 加载文本域
      */
@@ -104,64 +81,7 @@ class WPComments_Core {
      * 加载前端资源
      */
     public function enqueue_frontend_assets() {
-        // 角色徽章样式
-        if (get_option('wpcomments_enable_role_badge', false)) {
-            wp_enqueue_style('wpcomments-role-badge', WPCOMMENTS_URL . 'assets/comment-author-role-badge.css', array(), WPCOMMENTS_VERSION);
-        }
-        
-        // 验证脚本
-        if (get_option('wpcomments_enable_validation', true)) {
-            wp_enqueue_script('wpcomments-validation', WPCOMMENTS_URL . 'assets/js/validation.js', array('jquery'), WPCOMMENTS_VERSION, true);
-        }
-        
-        // 字符限制脚本
-        if (get_option('wpcomments_enable_comment_limiter', false) && is_singular() && comments_open()) {
-            wp_enqueue_script('wpcomments-limiter', WPCOMMENTS_URL . 'assets/js/comment-limiter.js', array('jquery'), WPCOMMENTS_VERSION, true);
-            
-            $options = get_option('wpcomments_comment_limiter_options', array());
-            wp_localize_script('wpcomments-limiter', 'wpcommentsLimiter', array(
-                'minChars' => $options['minimum_characters'] ?? 20,
-                'maxChars' => $options['maximum_characters'] ?? 1000,
-                'minMessage' => $options['minimum_message'] ?? __('Your comment is below the minimum allowed limit. Please try to be more expressive.', 'wpcomments'),
-                'maxMessage' => $options['maximum_message'] ?? __('Your comment exceeds the maximum limit allowed. Please try to reduce it.', 'wpcomments'),
-                'isAdmin' => current_user_can('manage_options') ? 'yes' : 'no',
-                'enableAdminFeature' => $options['enable_admin_feature'] ?? 'no'
-            ));
-        }
-        
-        // 举报功能脚本
-        if (get_option('wpcomments_enable_report_comments', false) && is_singular() && comments_open()) {
-            wp_enqueue_script('wpcomments-report', WPCOMMENTS_URL . 'assets/js/comment-report.js', array('jquery'), WPCOMMENTS_VERSION, true);
-            
-            wp_localize_script('wpcomments-report', 'wpcommentsReport', array(
-                'ajaxurl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wpcomments_report_nonce'),
-                'reportText' => __('Report', 'wpcomments'),
-                'thankYouMessage' => __('Thank you for your report. We will review this comment.', 'wpcomments'),
-                'alreadyReportedMessage' => __('You have already reported this comment.', 'wpcomments'),
-                'errorMessage' => __('An error occurred. Please try again.', 'wpcomments')
-            ));
-        }
-        
-        // 私密评论和举报功能的样式
-        if (get_option('wpcomments_enable_private_comments', false) || get_option('wpcomments_enable_report_comments', false) || get_option('wpcomments_enable_comment_limiter', false)) {
-            wp_add_inline_style('wp-block-library', '
-                .wpcomments-private-notice { color: #d63638; font-weight: bold; }
-                .wpcomments-private-content { border-left: 3px solid #d63638; padding-left: 10px; }
-                .comment-form-private-comment { margin-top: 10px; }
-                .comment-form-private-comment input[type="checkbox"] { margin-right: 5px; }
-                .wpcomments-disabled-action { color: #999; cursor: not-allowed; text-decoration: none; }
-                .wpcomments-report-link { margin-left: 10px; }
-                .wpcomments-report-btn { color: #666; text-decoration: none; font-size: 12px; }
-                .wpcomments-report-btn:hover { color: #d63638; text-decoration: underline; }
-                .wpcomments-already-reported { color: #999; font-size: 12px; font-style: italic; }
-                #wpcomments-counter-container { margin-top: 10px; }
-                #wpcomments-progress-bar { height: 5px; background-color: #ddd; border-radius: 3px; overflow: hidden; }
-                #wpcomments-progress-fill { height: 100%; width: 0%; background-color: #4caf50; transition: width 0.3s ease; }
-                #wpcomments-char-counter { margin-top: 5px; font-size: 14px; color: #666; }
-                .wpcomments-disabled { opacity: 0.6; cursor: not-allowed; }
-            ');
-        }
+        // 现已由模块管理器集中调用各模块的 enqueue 方法
     }
     
     /**
@@ -176,6 +96,13 @@ class WPComments_Core {
     }
     
     // ========== 角色徽章功能 ==========
+    
+    /** 对外提供的注册方法 */
+    public function register_role_badge_module(): void {
+        if ($this->role_badge_registered) { return; }
+        $this->init_role_badge();
+        $this->role_badge_registered = true;
+    }
     
     /**
      * 初始化角色徽章功能
@@ -192,6 +119,14 @@ class WPComments_Core {
     }
     
     protected $user_role = '';
+
+    // registration flags for modules
+    private $role_badge_registered = false;
+    private $delete_pending_registered = false;
+    private $remove_website_field_registered = false;
+    private $validation_registered = false;
+    private $private_comments_registered = false;
+    private $comment_limiter_registered = false;
     
     public function load_admin_textdomain_in_frontend() {
         if (!is_admin()) {
@@ -246,6 +181,12 @@ class WPComments_Core {
     }
     
     // ========== 删除待审核评论功能 ==========
+    
+    public function register_delete_pending_module(): void {
+        if ($this->delete_pending_registered) { return; }
+        $this->init_delete_pending();
+        $this->delete_pending_registered = true;
+    }
     
     private function init_delete_pending() {
         add_action('admin_menu', array($this, 'add_delete_pending_menu'));
@@ -329,19 +270,24 @@ class WPComments_Core {
             wp_send_json_error(__('权限不足', 'wpcomments'));
         }
         
-        global $wpdb;
-        
-        $deleted = $wpdb->delete(
-            $wpdb->comments,
-            array('comment_approved' => '0'),
-            array('%s')
-        );
-        
-        if ($deleted !== false) {
-            wp_send_json_success(sprintf(__('成功删除 %d 条待审核评论', 'wpcomments'), $deleted));
-        } else {
-            wp_send_json_error(__('删除失败', 'wpcomments'));
+        $total_deleted = 0;
+        while (true) {
+            $pending_ids = get_comments(array(
+                'status' => 'hold',
+                'number' => 200,
+                'fields' => 'ids',
+            ));
+            if (empty($pending_ids)) {
+                break;
+            }
+            foreach ($pending_ids as $cid) {
+                if (wp_delete_comment($cid, true)) {
+                    $total_deleted++;
+                }
+            }
         }
+        
+        wp_send_json_success(sprintf(__('成功删除 %d 条待审核评论', 'wpcomments'), $total_deleted));
     }
     
 
@@ -349,6 +295,12 @@ class WPComments_Core {
 
     
     // ========== 移除网站链接字段功能 ==========
+    
+    public function register_remove_website_field_module(): void {
+        if ($this->remove_website_field_registered) { return; }
+        $this->init_remove_website_field();
+        $this->remove_website_field_registered = true;
+    }
     
     private function init_remove_website_field() {
         add_filter('comment_form_default_fields', array($this, 'remove_website_field'));
@@ -361,8 +313,14 @@ class WPComments_Core {
     
     // ========== 评论表单验证功能 ==========
     
+    public function register_validation_module(): void {
+        if ($this->validation_registered) { return; }
+        $this->init_validation();
+        $this->validation_registered = true;
+    }
+    
     private function init_validation() {
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_validation_scripts'));
+        // enqueue moved to module manager via Validation_Module
         add_action('pre_comment_on_post', array($this, 'validate_comment_submission'));
     }
     
@@ -398,6 +356,12 @@ class WPComments_Core {
     }
     
     // ========== 私密评论功能 ==========
+    
+    public function register_private_comments_module(): void {
+        if ($this->private_comments_registered) { return; }
+        $this->init_private_comments();
+        $this->private_comments_registered = true;
+    }
     
     private function init_private_comments() {
         add_filter('comment_form_field_comment', array($this, 'add_private_comment_field'));
@@ -523,8 +487,14 @@ class WPComments_Core {
     
     // ========== 评论字符限制功能 ==========
     
+    public function register_comment_limiter_module(): void {
+        if ($this->comment_limiter_registered) { return; }
+        $this->init_comment_limiter();
+        $this->comment_limiter_registered = true;
+    }
+    
     private function init_comment_limiter() {
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_limiter_scripts'));
+        // enqueue moved to module manager via Comment_Limiter_Module
         add_filter('preprocess_comment', array($this, 'validate_comment_length'));
         add_action('comment_form_after_fields', array($this, 'add_comment_counter'));
     }
@@ -542,6 +512,9 @@ class WPComments_Core {
                 'isAdmin' => current_user_can('manage_options') ? 'yes' : 'no',
                 'enableAdminFeature' => $options['enable_admin_feature']
             ));
+
+            // 前端样式（仅限字符限制器相关）
+            wp_add_inline_style('wp-block-library', '\n                #wpcomments-counter-container { margin-top: 10px; }\n                #wpcomments-progress-bar { height: 5px; background-color: #ddd; border-radius: 3px; overflow: hidden; }\n                #wpcomments-progress-fill { height: 100%; width: 0%; background-color: #4caf50; transition: width 0.3s ease; }\n                #wpcomments-char-counter { margin-top: 5px; font-size: 14px; color: #666; }\n                .wpcomments-disabled { opacity: 0.6; cursor: not-allowed; }\n            ');
         }
     }
     
@@ -598,12 +571,19 @@ class WPComments_Core {
     
     // ========== 评论举报功能 ==========
     
+    /** 对外提供的注册方法（由模块管理器调用） */
+    public function register_report_module(): void {
+        if ($this->report_registered) { return; }
+        $this->init_report_comments();
+        $this->report_registered = true;
+    }
+
     private function init_report_comments() {
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_report_scripts'));
+        // Enqueue moved to module's enqueue methods via Module Manager
         add_action('wp_ajax_wpcomments_report_comment', array($this, 'handle_comment_report'));
         add_action('wp_ajax_nopriv_wpcomments_report_comment', array($this, 'handle_comment_report'));
         add_filter('comment_reply_link', array($this, 'add_report_link_to_reply'), 10, 3);
-        add_filter('comment_text', array($this, 'add_report_link_to_content'), 80, 2);
+        add_filter('comment_text', array($this, 'add_report_link_to_content'), 999, 2);
     }
     
     public function enqueue_report_scripts() {
@@ -629,6 +609,12 @@ class WPComments_Core {
             wp_send_json_error(__('Invalid comment ID', 'wpcomments'));
         }
         
+        // 登录要求
+        $login_only = (bool) (class_exists('WPComments\\WPComments_Network_Settings') ? \WPComments\WPComments_Network_Settings::get_effective_setting('wpcomments_report_logged_in_only', 0) : get_option('wpcomments_report_logged_in_only', 0));
+        if ($login_only && !is_user_logged_in()) {
+            wp_send_json_error(__('Only logged-in users can report comments.', 'wpcomments'));
+        }
+        
         // 检查是否已经举报过
         if ($this->user_already_reported($comment_id)) {
             wp_send_json_error(__('You have already reported this comment.', 'wpcomments'));
@@ -638,7 +624,9 @@ class WPComments_Core {
         $this->record_comment_report($comment_id);
         
         // 检查是否达到举报阈值
-        $threshold = get_option('wpcomments_report_threshold', 3);
+        $threshold = class_exists('WPComments\\WPComments_Network_Settings') 
+            ? (int) WPComments_Network_Settings::get_effective_setting('wpcomments_report_threshold', get_option('wpcomments_report_threshold', 3))
+            : (int) get_option('wpcomments_report_threshold', 3);
         $report_count = get_comment_meta($comment_id, 'wpcomments_report_count', true) ?: 0;
         
         if ($report_count >= $threshold) {
@@ -656,6 +644,8 @@ class WPComments_Core {
         
         $report_link = $this->get_report_link($comment->comment_ID);
         if ($report_link) {
+            // 标记该评论已在回复区域输出举报链接
+            $this->report_links_output[(int) $comment->comment_ID] = true;
             $comment_reply_link .= ' <span class="wpcomments-report-link">' . $report_link . '</span>';
         }
         
@@ -663,7 +653,12 @@ class WPComments_Core {
     }
     
     public function add_report_link_to_content($comment_content, $comment) {
-        if (get_option('thread_comments') || is_admin()) {
+        if (is_admin()) {
+            return $comment_content;
+        }
+
+        // 如果已在“回复”区域输出，则不再追加到内容区域，避免重复
+        if (!empty($this->report_links_output[(int) $comment->comment_ID])) {
             return $comment_content;
         }
         
@@ -689,11 +684,24 @@ class WPComments_Core {
             return '<span class="wpcomments-already-reported">' . __('Reported', 'wpcomments') . '</span>';
         }
         
-        return '<a href="#" class="wpcomments-report-btn" data-comment-id="' . esc_attr($comment_id) . '" rel="nofollow">' . __('Report', 'wpcomments') . '</a>';
+        // 登录限制：如果配置了仅登录用户可举报且当前未登录，不输出举报链接
+        $login_only = (bool) (class_exists('WPComments\WPComments_Network_Settings') ? WPComments_Network_Settings::get_effective_setting('wpcomments_report_logged_in_only', 0) : get_option('wpcomments_report_logged_in_only', 0));
+        if ($login_only && !is_user_logged_in()) {
+            return '';
+        }
+        
+        // 隐私提示：允许后台自定义；支持 {days} 占位符
+        $retention_days = (int) (class_exists('WPComments\WPComments_Network_Settings') ? WPComments_Network_Settings::get_effective_setting('wpcomments_report_retention_days', apply_filters('wpcomments_report_retention_days', 90)) : get_option('wpcomments_report_retention_days', apply_filters('wpcomments_report_retention_days', 90)));
+        $notice_tpl = class_exists('WPComments\WPComments_Network_Settings') ? WPComments_Network_Settings::get_effective_setting('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments')) : get_option('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments'));
+        $privacy_notice = str_replace('{days}', (string) $retention_days, $notice_tpl);
+        $privacy_notice_attr = esc_attr($privacy_notice);
+        
+        return '<a href="#" class="wpcomments-report-btn" data-comment-id="' . esc_attr($comment_id) . '" rel="nofollow" title="' . $privacy_notice_attr . '" aria-label="' . $privacy_notice_attr . '">' . __('Report', 'wpcomments') . '</a>';
     }
     
     private function user_already_reported($comment_id) {
-        $user_ip = $this->get_user_ip();
+        $raw_ip = $this->get_user_ip();
+        $hashed_ip = hash_hmac('sha1', $raw_ip, wp_salt());
         $user_id = get_current_user_id();
         
         // 检查 cookie
@@ -704,17 +712,34 @@ class WPComments_Core {
             }
         }
         
-        // 检查数据库记录（基于 IP 和用户 ID）
+        // 频控：同一主体短时间内仅允许一次
+        $lock_key = $this->get_report_lock_key($comment_id, $user_id, $hashed_ip);
+        if (get_transient($lock_key)) {
+            return true;
+        }
+        
+        // 检查数据库记录（基于哈希 IP 和用户 ID）
         global $wpdb;
         $table_name = $wpdb->prefix . 'wpcomments_reports';
         
-        $where_clause = $wpdb->prepare("comment_id = %d AND (user_ip = %s", $comment_id, $user_ip);
         if ($user_id) {
-            $where_clause .= $wpdb->prepare(" OR user_id = %d", $user_id);
+            $existing = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT id FROM {$table_name} WHERE comment_id = %d AND (user_ip = %s OR user_id = %d)",
+                    $comment_id,
+                    $hashed_ip,
+                    $user_id
+                )
+            );
+        } else {
+            $existing = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT id FROM {$table_name} WHERE comment_id = %d AND user_ip = %s",
+                    $comment_id,
+                    $hashed_ip
+                )
+            );
         }
-        $where_clause .= ")";
-        
-        $existing = $wpdb->get_var("SELECT id FROM {$table_name} WHERE {$where_clause}");
         
         return !empty($existing);
     }
@@ -722,20 +747,21 @@ class WPComments_Core {
     private function record_comment_report($comment_id) {
         global $wpdb;
         
-        $user_ip = $this->get_user_ip();
+        $raw_ip = $this->get_user_ip();
+        $hashed_ip = hash_hmac('sha1', $raw_ip, wp_salt());
         $user_id = get_current_user_id();
         
         // 创建举报记录表（如果不存在）
         $this->create_reports_table();
         
-        // 插入举报记录
+        // 插入举报记录（使用哈希 IP）
         $table_name = $wpdb->prefix . 'wpcomments_reports';
         $wpdb->insert(
             $table_name,
             array(
                 'comment_id' => $comment_id,
                 'user_id' => $user_id ?: null,
-                'user_ip' => $user_ip,
+                'user_ip' => $hashed_ip,
                 'report_time' => current_time('mysql')
             ),
             array('%d', '%d', '%s', '%s')
@@ -752,6 +778,17 @@ class WPComments_Core {
         }
         $reported_comments[] = $comment_id;
         setcookie('wpcomments_reports', json_encode($reported_comments), time() + (30 * DAY_IN_SECONDS), COOKIEPATH, COOKIE_DOMAIN);
+        
+        // 设置频控，防止短时间内重复举报（可配置，默认10分钟）
+        $lock_key = $this->get_report_lock_key($comment_id, $user_id, $hashed_ip);
+        $min_interval = max(1, (int) (class_exists('WPComments\WPComments_Network_Settings') ? WPComments_Network_Settings::get_effective_setting('wpcomments_report_min_interval', 10) : get_option('wpcomments_report_min_interval', 10)));
+        set_transient($lock_key, 1, $min_interval * MINUTE_IN_SECONDS);
+    }
+    private function get_report_lock_key($comment_id, $user_id, $hashed_ip) {
+        if ($user_id) {
+            return 'wpcomments_report_lock_uid_' . (int) $user_id . '_' . (int) $comment_id;
+        }
+        return 'wpcomments_report_lock_ip_' . $hashed_ip . '_' . (int) $comment_id;
     }
     
     private function create_reports_table() {
@@ -796,18 +833,25 @@ class WPComments_Core {
     
     // ========== 置顶评论功能 ==========
     
+    /** 对外提供的注册方法（由模块管理器调用） */
+    public function register_sticky_module(): void {
+        if ($this->sticky_registered) { return; }
+        $this->init_sticky_comments();
+        $this->sticky_registered = true;
+    }
+
     private function init_sticky_comments() {
         // 管理端功能
         add_filter('comment_row_actions', array($this, 'add_sticky_comment_actions'), 10, 2);
         add_filter('edit_comment_misc_actions', array($this, 'add_sticky_comment_edit_section'), 10, 2);
         add_action('admin_post_pin_comment', array($this, 'handle_pin_comment'));
         add_action('admin_post_unpin_comment', array($this, 'handle_unpin_comment'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_sticky_admin_assets'));
+        // Enqueue moved to module's enqueue methods via Module Manager
         
         // 前端功能
         add_filter('comments_clauses', array($this, 'modify_comments_query_for_sticky'), 10, 2);
         add_filter('the_comments', array($this, 'adjust_comments_order_for_sticky'));
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_sticky_frontend_assets'));
+        // Enqueue moved to module's enqueue methods via Module Manager
         add_filter('comment_class', array($this, 'add_sticky_comment_class'), 10, 4);
     }
     
@@ -852,29 +896,27 @@ class WPComments_Core {
     }
     
     private function get_pin_button($comment_id) {
-        $url = wp_nonce_url(
-            add_query_arg(
-                array(
-                    'cid' => $comment_id,
-                    'action' => 'pin_comment',
-                ),
-                admin_url('admin-post.php')
-            )
+        $url = add_query_arg(
+            array(
+                'cid' => $comment_id,
+                'action' => 'pin_comment',
+            ),
+            admin_url('admin-post.php')
         );
+        $url = wp_nonce_url($url, 'wpcomments_sticky_comment');
         
         return '<a class="wpcomments-sticky-pin" href="' . esc_url($url) . '">' . __('置顶', 'wpcomments') . '</a>';
     }
     
     private function get_unpin_button($comment_id) {
-        $url = wp_nonce_url(
-            add_query_arg(
-                array(
-                    'cid' => $comment_id,
-                    'action' => 'unpin_comment',
-                ),
-                admin_url('admin-post.php')
-            )
+        $url = add_query_arg(
+            array(
+                'cid' => $comment_id,
+                'action' => 'unpin_comment',
+            ),
+            admin_url('admin-post.php')
         );
+        $url = wp_nonce_url($url, 'wpcomments_sticky_comment');
         
         return '<a class="wpcomments-sticky-unpin" href="' . esc_url($url) . '">' . __('取消置顶', 'wpcomments') . '</a>';
     }
@@ -918,11 +960,7 @@ class WPComments_Core {
     }
     
     private function verify_sticky_nonce() {
-        $is_nonce_valid = isset($_GET['_wpnonce']) 
-            ? wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])))
-            : false;
-        
-        if (!$is_nonce_valid) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'wpcomments_sticky_comment')) {
             wp_die(__('安全验证失败，请重试', 'wpcomments'));
         }
         
@@ -1039,354 +1077,6 @@ class WPComments_Core {
         }
     }
     
-    // ========== 评论统计分析功能 ==========
-    
-    private function init_comment_analytics() {
-        // 管理端功能
-        add_action('admin_menu', array($this, 'add_analytics_menu'));
-        add_action('wp_ajax_wpcomments_analytics_data', array($this, 'ajax_get_analytics_data'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_analytics_assets'));
-        
-        // 定期清理旧数据
-        add_action('wp_scheduled_delete', array($this, 'cleanup_old_analytics_data'));
-    }
-    
-    public function add_analytics_menu() {
-        add_comments_page(
-            __('评论统计分析', 'wpcomments'),
-            __('评论统计', 'wpcomments'),
-            'moderate_comments',
-            'wpcomments-analytics',
-            array($this, 'render_analytics_page')
-        );
-    }
-    
-    public function render_analytics_page() {
-        ?>
-        <div class="wrap wpcomments-analytics">
-            <h1><?php _e('评论统计分析', 'wpcomments'); ?></h1>
-            
-            <div class="wpcomments-analytics-dashboard">
-                <!-- 统计概览 -->
-                <div class="wpcomments-stats-overview">
-                    <div class="wpcomments-stat-card">
-                        <h3><?php _e('总评论数', 'wpcomments'); ?></h3>
-                        <div class="stat-number" id="total-comments"><?php echo $this->get_total_comments(); ?></div>
-                    </div>
-                    <div class="wpcomments-stat-card">
-                        <h3><?php _e('本月评论', 'wpcomments'); ?></h3>
-                        <div class="stat-number" id="monthly-comments"><?php echo $this->get_monthly_comments(); ?></div>
-                    </div>
-                    <div class="wpcomments-stat-card">
-                        <h3><?php _e('待审核评论', 'wpcomments'); ?></h3>
-                        <div class="stat-number" id="pending-comments"><?php echo $this->get_pending_comments(); ?></div>
-                    </div>
-                    <div class="wpcomments-stat-card">
-                        <h3><?php _e('平均字符数', 'wpcomments'); ?></h3>
-                        <div class="stat-number" id="avg-length"><?php echo $this->get_average_comment_length(); ?></div>
-                    </div>
-                </div>
-                
-                <!-- 图表区域 -->
-                <div class="wpcomments-charts-section">
-                    <div class="wpcomments-chart-container">
-                        <h3><?php _e('评论趋势 (最近30天)', 'wpcomments'); ?></h3>
-                        <canvas id="comments-trend-chart" width="400" height="200"></canvas>
-                    </div>
-                    
-                    <div class="wpcomments-chart-container">
-                        <h3><?php _e('评论状态分布', 'wpcomments'); ?></h3>
-                        <canvas id="comments-status-chart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-                
-                <!-- 详细统计 -->
-                <div class="wpcomments-detailed-stats">
-                    <div class="wpcomments-stats-table">
-                        <h3><?php _e('热门文章评论排行', 'wpcomments'); ?></h3>
-                        <table class="wp-list-table widefat fixed striped">
-                            <thead>
-                                <tr>
-                                    <th><?php _e('文章标题', 'wpcomments'); ?></th>
-                                    <th><?php _e('评论数', 'wpcomments'); ?></th>
-                                    <th><?php _e('最新评论', 'wpcomments'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php $this->render_top_commented_posts(); ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="wpcomments-stats-table">
-                        <h3><?php _e('活跃评论者', 'wpcomments'); ?></h3>
-                        <table class="wp-list-table widefat fixed striped">
-                            <thead>
-                                <tr>
-                                    <th><?php _e('评论者', 'wpcomments'); ?></th>
-                                    <th><?php _e('评论数', 'wpcomments'); ?></th>
-                                    <th><?php _e('最后评论时间', 'wpcomments'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php $this->render_top_commenters(); ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
-    
-    private function get_total_comments() {
-        global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = '1'");
-    }
-    
-    private function get_monthly_comments() {
-        global $wpdb;
-        $start_date = date('Y-m-01');
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->comments} 
-             WHERE comment_approved = '1' AND comment_date >= %s",
-            $start_date
-        ));
-    }
-    
-    private function get_pending_comments() {
-        global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = '0'");
-    }
-    
-    private function get_average_comment_length() {
-        global $wpdb;
-        $avg = $wpdb->get_var("SELECT AVG(CHAR_LENGTH(comment_content)) FROM {$wpdb->comments} WHERE comment_approved = '1'");
-        return round($avg);
-    }
-    
-    private function render_top_commented_posts() {
-        global $wpdb;
-        
-        $results = $wpdb->get_results("
-            SELECT p.ID, p.post_title, COUNT(c.comment_ID) as comment_count,
-                   MAX(c.comment_date) as latest_comment
-            FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->comments} c ON p.ID = c.comment_post_ID AND c.comment_approved = '1'
-            WHERE p.post_status = 'publish' AND p.post_type = 'post'
-            GROUP BY p.ID
-            HAVING comment_count > 0
-            ORDER BY comment_count DESC
-            LIMIT 10
-        ");
-        
-        foreach ($results as $row) {
-            echo '<tr>';
-            echo '<td><a href="' . get_edit_post_link($row->ID) . '">' . esc_html($row->post_title) . '</a></td>';
-            echo '<td>' . $row->comment_count . '</td>';
-            echo '<td>' . mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $row->latest_comment) . '</td>';
-            echo '</tr>';
-        }
-    }
-    
-    private function render_top_commenters() {
-        global $wpdb;
-        
-        $results = $wpdb->get_results("
-            SELECT comment_author, comment_author_email, COUNT(*) as comment_count,
-                   MAX(comment_date) as latest_comment
-            FROM {$wpdb->comments}
-            WHERE comment_approved = '1' AND comment_author != ''
-            GROUP BY comment_author_email
-            ORDER BY comment_count DESC
-            LIMIT 10
-        ");
-        
-        foreach ($results as $row) {
-            echo '<tr>';
-            echo '<td>' . esc_html($row->comment_author) . '</td>';
-            echo '<td>' . $row->comment_count . '</td>';
-            echo '<td>' . mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $row->latest_comment) . '</td>';
-            echo '</tr>';
-        }
-    }
-    
-    public function ajax_get_analytics_data() {
-        check_ajax_referer('wpcomments_analytics_nonce', 'nonce');
-        
-        if (!current_user_can('moderate_comments')) {
-            wp_send_json_error(__('权限不足', 'wpcomments'));
-        }
-        
-        $type = sanitize_text_field($_POST['type']);
-        
-        switch ($type) {
-            case 'trend':
-                wp_send_json_success($this->get_comments_trend_data());
-                break;
-            case 'status':
-                wp_send_json_success($this->get_comments_status_data());
-                break;
-            default:
-                wp_send_json_error(__('无效的数据类型', 'wpcomments'));
-        }
-    }
-    
-    private function get_comments_trend_data() {
-        global $wpdb;
-        
-        $data = array();
-        $labels = array();
-        
-        for ($i = 29; $i >= 0; $i--) {
-            $date = date('Y-m-d', strtotime("-{$i} days"));
-            $labels[] = date('m/d', strtotime($date));
-            
-            $count = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->comments} 
-                 WHERE DATE(comment_date) = %s AND comment_approved = '1'",
-                $date
-            ));
-            
-            $data[] = intval($count);
-        }
-        
-        return array(
-            'labels' => $labels,
-            'data' => $data
-        );
-    }
-    
-    private function get_comments_status_data() {
-        global $wpdb;
-        
-        $approved = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = '1'");
-        $pending = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = '0'");
-        $spam = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = 'spam'");
-        $trash = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = 'trash'");
-        
-        return array(
-            'labels' => [__('已批准', 'wpcomments'), __('待审核', 'wpcomments'), __('垃圾评论', 'wpcomments'), __('回收站', 'wpcomments')],
-            'data' => [intval($approved), intval($pending), intval($spam), intval($trash)]
-        );
-    }
-    
-    public function enqueue_analytics_assets($hook) {
-        if ('comments_page_wpcomments-analytics' !== $hook) {
-            return;
-        }
-        
-        // 加载 Chart.js
-        wp_enqueue_script(
-            'chartjs',
-            'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js',
-            array(),
-            '3.9.1',
-            true
-        );
-        
-        // 加载分析页面脚本
-        wp_enqueue_script(
-            'wpcomments-analytics',
-            WPCOMMENTS_URL . 'assets/js/analytics.js',
-            array('jquery', 'chartjs'),
-            WPCOMMENTS_VERSION,
-            true
-        );
-        
-        // 本地化脚本
-        wp_localize_script('wpcomments-analytics', 'wpcommentsAnalytics', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wpcomments_analytics_nonce'),
-            'i18n' => array(
-                'loading' => __('加载中...', 'wpcomments'),
-                'error' => __('数据加载失败', 'wpcomments'),
-                'noData' => __('暂无数据', 'wpcomments')
-            )
-        ));
-        
-        // 加载样式
-        wp_add_inline_style('wp-admin', '
-            .wpcomments-analytics-dashboard {
-                margin-top: 20px;
-            }
-            .wpcomments-stats-overview {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-            }
-            .wpcomments-stat-card {
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 20px;
-                text-align: center;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            .wpcomments-stat-card h3 {
-                margin: 0 0 10px 0;
-                color: #666;
-                font-size: 14px;
-                font-weight: normal;
-            }
-            .wpcomments-stat-card .stat-number {
-                font-size: 32px;
-                font-weight: bold;
-                color: #0073aa;
-            }
-            .wpcomments-charts-section {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                margin-bottom: 30px;
-            }
-            .wpcomments-chart-container {
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 20px;
-            }
-            .wpcomments-chart-container h3 {
-                margin: 0 0 20px 0;
-                color: #333;
-            }
-            .wpcomments-detailed-stats {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-            }
-            .wpcomments-stats-table {
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 20px;
-            }
-            .wpcomments-stats-table h3 {
-                margin: 0 0 15px 0;
-                color: #333;
-            }
-            @media (max-width: 768px) {
-                .wpcomments-charts-section,
-                .wpcomments-detailed-stats {
-                    grid-template-columns: 1fr;
-                }
-            }
-        ');
-    }
-    
-    public function cleanup_old_analytics_data() {
-        // 清理超过90天的分析数据缓存
-        global $wpdb;
-        $wpdb->query($wpdb->prepare(
-            "DELETE FROM {$wpdb->options} 
-             WHERE option_name LIKE 'wpcomments_analytics_cache_%' 
-             AND option_name < %s",
-            'wpcomments_analytics_cache_' . date('Y-m-d', strtotime('-90 days'))
-        ));
-    }
 
 }
 
-// 初始化核心功能
-new WPComments_Core();
