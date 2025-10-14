@@ -53,6 +53,7 @@ class WPComments_Network_Settings {
         $enable_comment_limiter = get_site_option('wpcomments_enable_comment_limiter', false);
         $enable_report_comments = get_site_option('wpcomments_enable_report_comments', false);
         $enable_sticky_comments = get_site_option('wpcomments_enable_sticky_comments', false);
+        $enable_gongan_beian = get_site_option('wpcomments_enable_gongan_beian', false);
         $allow_site_override = get_site_option('wpcomments_allow_site_override', true);
         $network_enabled = get_site_option('wpcomments_network_enabled', 1);
         $network_enforce = get_site_option('wpcomments_network_enforce', 0);
@@ -156,6 +157,7 @@ class WPComments_Network_Settings {
                                         'wpcomments_report_retention_days' => __('举报保留天数（受控）', 'wpcomments'),
                                         'wpcomments_report_privacy_notice' => __('举报隐私提示（受控）', 'wpcomments'),
                                         'wpcomments_enable_sticky_comments' => __('置顶评论功能', 'wpcomments'),
+                                        'wpcomments_enable_gongan_beian' => __('公安备案合规辅助', 'wpcomments'),
                                     ];
                                     // Group options by category
                                     $option_groups = [
@@ -186,7 +188,8 @@ class WPComments_Network_Settings {
                                                 'wpcomments_enable_delete_pending',
                                                 'wpcomments_enable_frequently_replies',
                                                 'wpcomments_enable_moderation_info',
-                                                'wpcomments_enable_sticky_comments'
+                                                'wpcomments_enable_sticky_comments',
+                                                'wpcomments_enable_gongan_beian'
                                             ]
                                         ],
                                         'notifications' => [
@@ -400,6 +403,7 @@ class WPComments_Network_Settings {
                         <input type="hidden" name="wpcomments_enable_frequently_replies" value="0">
                         <input type="hidden" name="wpcomments_enable_moderation_info" value="0">
                         <input type="hidden" name="wpcomments_enable_sticky_comments" value="0">
+                        <input type="hidden" name="wpcomments_enable_gongan_beian" value="0">
 
                         <table class="form-table">
                             <tr>
@@ -445,6 +449,17 @@ class WPComments_Network_Settings {
                                         <span class="wpcomments-switch-label"><?php _e('启用评论置顶功能', 'wpcomments'); ?></span>
                                     </label>
                                     <p class="description"><?php _e('启用后，管理员可以将重要评论置顶显示，置顶评论将始终显示在评论列表的顶部。', 'wpcomments'); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><?php _e('公安备案合规辅助', 'wpcomments'); ?></th>
+                                <td>
+                                    <label class="wpcomments-switch">
+                                        <input type="checkbox" name="wpcomments_enable_gongan_beian" value="1" <?php checked($enable_gongan_beian); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
+                                        <span class="wpcomments-slider"></span>
+                                        <span class="wpcomments-switch-label"><?php _e('在后台评论列表显示来源IP、端口与精确时间，并在插入评论时记录端口', 'wpcomments'); ?></span>
+                                    </label>
+                                    <p class="description"><?php _e('启用后，将在后台评论列表中显示评论的来源IP、端口与精确时间，并在插入评论时记录端口信息，以满足公安备案相关合规要求（具体以当地监管要求为准）。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                         </table>
@@ -605,11 +620,13 @@ class WPComments_Network_Settings {
                 $enable_frequently_replies = isset($_POST['wpcomments_enable_frequently_replies']) ? (bool) $_POST['wpcomments_enable_frequently_replies'] : false;
                 $enable_moderation_info = isset($_POST['wpcomments_enable_moderation_info']) ? (bool) $_POST['wpcomments_enable_moderation_info'] : false;
                 $enable_sticky_comments = isset($_POST['wpcomments_enable_sticky_comments']) ? (bool) $_POST['wpcomments_enable_sticky_comments'] : false;
+                $enable_gongan_beian = isset($_POST['wpcomments_enable_gongan_beian']) ? (bool) $_POST['wpcomments_enable_gongan_beian'] : false;
                 
                 update_site_option('wpcomments_enable_delete_pending', $enable_delete_pending);
                 update_site_option('wpcomments_enable_frequently_replies', $enable_frequently_replies);
                 update_site_option('wpcomments_enable_moderation_info', $enable_moderation_info);
                 update_site_option('wpcomments_enable_sticky_comments', $enable_sticky_comments);
+                update_site_option('wpcomments_enable_gongan_beian', $enable_gongan_beian);
                 break;
                 
             case 'notifications':

@@ -430,6 +430,38 @@ tr:has(input:disabled) .description {
     color: #aaa;
 }
 
+/* 联动禁用状态样式 */
+.wpcomments-disabled-row {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.wpcomments-disabled-row th {
+    color: #999 !important;
+}
+
+.wpcomments-disabled-row .description {
+    color: #aaa !important;
+}
+
+.wpcomments-switch-disabled {
+    cursor: not-allowed !important;
+}
+
+.wpcomments-switch-disabled .wpcomments-slider {
+    background-color: #ddd !important;
+    cursor: not-allowed !important;
+}
+
+.wpcomments-switch-disabled .wpcomments-slider:before {
+    background-color: #f5f5f5 !important;
+}
+
+.wpcomments-switch-disabled .wpcomments-switch-label {
+    color: #999 !important;
+    cursor: not-allowed !important;
+}
+
 /* 网络控制选项样式 */
 .network-control-options {
     display: grid;

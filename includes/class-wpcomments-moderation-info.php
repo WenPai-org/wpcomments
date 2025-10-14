@@ -6,7 +6,7 @@
  * @since   1.0.0
  */
 
-namespace WpComments;
+namespace WPComments;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

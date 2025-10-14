@@ -90,6 +90,8 @@ class WPComments_Settings
         add_action('update_option_wpcomments_enable_role_badge', array($this, 'handle_setting_update'));
         add_action('update_option_wpcomments_enable_delete_pending', array($this, 'handle_setting_update'));
         add_action('update_option_wpcomments_enable_validation', array($this, 'handle_setting_update'));
+        // 公安备案合规辅助开关变更时，触发特性重载
+        add_action('update_option_wpcomments_enable_gongan_beian', array($this, 'handle_setting_update'));
     }
 
     private function init_tabs()
@@ -216,7 +218,8 @@ class WPComments_Settings
             'wpcomments_enable_delete_pending',
             'wpcomments_enable_frequently_replies',
             'wpcomments_enable_moderation_info',
-            'wpcomments_enable_sticky_comments'
+            'wpcomments_enable_sticky_comments',
+            'wpcomments_enable_gongan_beian'
         );
         foreach ($settings_management as $setting) {
             register_setting($this->group_management, $setting, array(
@@ -290,10 +293,21 @@ class WPComments_Settings
         }
         
         // 确定是哪个标签页的提交
+        // 调试日志：记录提交的nonce和动作（始终记录）
+        error_log('[WPComments] handle_form_submission POST keys: ' . implode(',', array_keys($_POST)));
+        if (isset($_POST['wpcomments_features_nonce'])) {
+            $debug_verify = wp_verify_nonce($_POST['wpcomments_features_nonce'], 'wpcomments_features_action') ? 'true' : 'false';
+            error_log('[WPComments] features_nonce present, verify=' . $debug_verify . ', value=' . sanitize_text_field($_POST['wpcomments_features_nonce']));
+        }
+        if (isset($_POST['wpcomments_basic_nonce'])) {
+            $debug_verify_basic = wp_verify_nonce($_POST['wpcomments_basic_nonce'], 'wpcomments_basic_action') ? 'true' : 'false';
+            error_log('[WPComments] basic_nonce present, verify=' . $debug_verify_basic);
+        }
+
         $tab = 'basic';
-        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce($_POST['wpcomments_basic_nonce'], 'wpcomments_basic_nonce')) {
+        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce($_POST['wpcomments_basic_nonce'], 'wpcomments_basic_action')) {
             $tab = 'basic';
-        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce($_POST['wpcomments_features_nonce'], 'wpcomments_features_nonce')) {
+        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce($_POST['wpcomments_features_nonce'], 'wpcomments_features_action')) {
             $tab = 'features';
         } elseif (isset($_POST['wpcomments_management_nonce']) && wp_verify_nonce($_POST['wpcomments_management_nonce'], 'wpcomments_management_nonce')) {
             $tab = 'management';
@@ -302,6 +316,7 @@ class WPComments_Settings
         } elseif (isset($_POST['wpcomments_advanced_nonce']) && wp_verify_nonce($_POST['wpcomments_advanced_nonce'], 'wpcomments_advanced_nonce')) {
             $tab = 'advanced';
         } else {
+            error_log('[WPComments] Security check failed in handle_form_submission.');
             wp_die(__('Security check failed.'));
         }
         
@@ -387,6 +402,7 @@ class WPComments_Settings
         update_option('wpcomments_enable_frequently_replies', !empty($_POST['wpcomments_enable_frequently_replies']));
         update_option('wpcomments_enable_moderation_info', !empty($_POST['wpcomments_enable_moderation_info']));
         update_option('wpcomments_enable_sticky_comments', !empty($_POST['wpcomments_enable_sticky_comments']));
+        update_option('wpcomments_enable_gongan_beian', !empty($_POST['wpcomments_enable_gongan_beian']));
     }
     
     private function save_notifications_settings() {
@@ -460,6 +476,7 @@ class WPComments_Settings
                                         'wpcomments_report_retention_days' => __('举报数据保留天数', 'wpcomments'),
                                         'wpcomments_report_privacy_notice' => __('举报隐私提示', 'wpcomments'),
                                         'wpcomments_enable_sticky_comments' => __('置顶评论功能', 'wpcomments'),
+                                        'wpcomments_enable_gongan_beian' => __('公安备案合规辅助', 'wpcomments'),
                                     ];
 
                                     foreach ($option_names as $option => $label) {
@@ -532,6 +549,7 @@ class WPComments_Settings
     ?>
         <form method="post" action="options.php" id="wpcomments-basic-form">
             <?php settings_fields($this->group_basic); ?>
+            <?php wp_referer_field(); ?>
             <table class="form-table">
                 <tr>
                     <th><?php _e('评论系统状态', 'wpcomments'); ?></th>
@@ -632,7 +650,7 @@ class WPComments_Settings
             <?php endif; ?>
             
             <div class="wpcomments-submit-wrapper">
-                <?php wp_nonce_field('wpcomments_basic_nonce', 'wpcomments_basic_nonce'); ?>
+                <?php wp_nonce_field('wpcomments_basic_action', 'wpcomments_basic_nonce'); ?>
                 <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
             </div>
         </form>
@@ -705,6 +723,9 @@ class WPComments_Settings
                     case 'wpcomments_enable_sticky_comments':
                         echo '启用置顶评论功能';
                         break;
+                    case 'wpcomments_enable_gongan_beian':
+                        echo '启用公安备案合规辅助';
+                        break;
                 }
                 ?></th>
             <td>
@@ -744,6 +765,9 @@ class WPComments_Settings
                                                                 case 'wpcomments_enable_sticky_comments':
                                                                     echo '允许管理员置顶重要评论';
                                                                     break;
+                                                                case 'wpcomments_enable_gongan_beian':
+                                                                    echo '在后台评论列表中显示 IP、端口与精确时间，并在插入评论时记录端口（合规辅助）。';
+                                                                    break;
                                                             }
                                                             ?></span>
                 </label>
@@ -779,6 +803,9 @@ class WPComments_Settings
                                             case 'wpcomments_enable_sticky_comments':
                                                 echo '启用后，管理员可以将重要评论置顶显示，置顶评论将始终显示在评论列表的顶部。';
                                                 break;
+                                            case 'wpcomments_enable_gongan_beian':
+                                                echo '启用后，将在后台评论列表中显示评论的来源IP、端口与精确时间，并在插入评论时记录端口信息，以满足公安备案相关合规要求（具体以当地监管要求为准）。';
+                                                break;
                                         }
                                         ?></p>
             </td>
@@ -789,8 +816,8 @@ class WPComments_Settings
     private function render_features_tab()
     {
     ?>
-        <form method="post" action="options.php" id="wpcomments-features-form">
-            <?php settings_fields($this->group_features); ?>
+        <form method="post" action="" id="wpcomments-features-form">
+            <?php wp_nonce_field('wpcomments_features_action', 'wpcomments_features_nonce'); ?>
             <table class="form-table">
                 <?php
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_role_badge'));
@@ -876,24 +903,27 @@ class WPComments_Settings
             </div>
             <?php endif; ?>
             <div class="wpcomments-submit-wrapper">
-                <?php wp_nonce_field('wpcomments_features_nonce', 'wpcomments_features_nonce'); ?>
+                <?php // 保持与上方一致，仅输出一次正确的 nonce
+                // 已在表单顶部使用：wp_nonce_field('wpcomments_features_action', 'wpcomments_features_nonce');
+                // 这里不再重复输出，避免同名字段覆盖导致校验失败。
+                ?>
                 <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
             </div>
         </form>
     <?php
-    }
+        }
 
     private function render_management_tab()
     {
     ?>
-        <form method="post" action="options.php" id="wpcomments-management-form">
-            <?php settings_fields($this->group_management); ?>
+        <form method="post" action="" id="wpcomments-management-form">
             <table class="form-table">
                 <?php
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_delete_pending'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_frequently_replies'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_moderation_info'));
                 $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_sticky_comments'));
+                $this->render_checkbox_field(array('option_name' => 'wpcomments_enable_gongan_beian'));
                 ?>
             </table>
 
