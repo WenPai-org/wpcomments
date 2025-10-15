@@ -35,8 +35,8 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Form validation and submission
-    $('#wpcomments-basic-form, #wpcomments-features-form, #wpcomments-management-form, #wpcomments-advanced-form').on('submit', function(e) {
+    // Form validation and submission（含网络设置表单）
+    $('#wpcomments-basic-form, #wpcomments-features-form, #wpcomments-management-form, #wpcomments-advanced-form, #wpcomments-network-form, #wpcomments-email-settings-form').on('submit', function(e) {
         var $form = $(this);
         var $status = $('#wpcomments-status');
         var $submitButton = $form.find('button[type="submit"]');

@@ -95,14 +95,11 @@ class WPComments_Email_Notification {
     }
     
     public function output_admin_settings_page() {
-        if (isset($_POST['submit'])) {
-            $this->save_settings();
-            echo '<div class="notice notice-success"><p>设置已保存</p></div>';
-        }
-        
+        // 成功提示统一交由前端 JS 的 #wpcomments-status 控制，避免重复提示
+
         $settings = $this->get_all_settings();
         ?>
-        <form method="post" action="">
+        <form method="post" action="" id="wpcomments-email-settings-form">
             <?php wp_nonce_field('wpcomments_email_settings', 'wpcomments_email_nonce'); ?>
             
             <table class="form-table">
@@ -565,19 +562,55 @@ class WPComments_Email_Notification {
     }
     
     public function admin_init() {
+        // 处理在独立页面保存设置
         if (isset($_GET['page']) && $_GET['page'] === 'wpcomments-email-settings') {
-            if (isset($_POST['submit']) && wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
+            if (isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
                 $this->save_settings();
-                wp_redirect(add_query_arg('updated', 'true', wp_get_referer()));
+                $redirect = wp_get_referer();
+                if ($redirect) {
+                    $redirect = add_query_arg('settings-updated', 'true', $redirect);
+                } else {
+                    $redirect = add_query_arg('settings-updated', 'true', admin_url('edit-comments.php?page=wpcomments-email-settings'));
+                }
+                wp_redirect($redirect);
+                exit;
+            }
+        }
+
+        // 处理在主设置页面（通知标签页）中保存设置
+        if (isset($_GET['page']) && $_GET['page'] === 'wpcomments-settings') {
+            $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : '';
+            if ($tab === 'notifications' && isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
+                $this->save_settings();
+                wp_redirect(add_query_arg(array(
+                    'page' => 'wpcomments-settings',
+                    'tab' => 'notifications',
+                    'settings-updated' => 'true'
+                ), admin_url('options-general.php')));
                 exit;
             }
         }
     }
-    
+
     public function enqueue_admin_scripts($hook) {
         if (strpos($hook, 'wpcomments') !== false) {
+            // 样式与脚本
             wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), self::VERSION);
             wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), self::VERSION, true);
+
+            // 本地化数据，确保统一的状态提示和环境信息
+            wp_localize_script('wpcomments-admin', 'wpcomments', array(
+                'nonce' => wp_create_nonce('wpcomments_admin_nonce'),
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'plugin_url' => WPCOMMENTS_URL,
+                'assets_url' => WPCOMMENTS_URL . 'assets/',
+                'is_network_admin' => is_network_admin() ? '1' : '0',
+                'is_multisite' => is_multisite() ? '1' : '0',
+            ));
+
+            wp_localize_script('wpcomments-admin', 'wpcomments_l10n', array(
+                'settings_saved' => __('设置已成功保存。', 'wpcomments')
+            ));
         }
     }
     

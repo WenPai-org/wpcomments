@@ -103,14 +103,10 @@ class WPComments_Core {
         }
     }
     
-    public function enqueue_admin_assets($hook) {
-        if (strpos($hook, 'comment') !== false || strpos($hook, 'wpcomments') !== false) {
-            wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), WPCOMMENTS_VERSION);
-            wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
-        }
+    public function enqueue_admin_assets() {
+        wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), WPCOMMENTS_VERSION);
+        wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
     }
-    
-    // ========== 模块注册方法（由模块管理器调用） ==========
     
     public function register_role_badge_module(): void {
         if ($this->role_badge_registered) { return; }

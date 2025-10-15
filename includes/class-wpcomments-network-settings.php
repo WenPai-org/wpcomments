@@ -14,7 +14,7 @@ class WPComments_Network_Settings {
     public function __construct() {
         add_action('network_admin_menu', array($this, 'add_network_admin_menu'));
         add_action('network_admin_edit_wpcomments_network_settings', array($this, 'save_network_settings'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_styles'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
     }
     
     public function add_network_admin_menu() {
@@ -32,13 +32,7 @@ class WPComments_Network_Settings {
         if (!current_user_can('manage_network_options')) {
             wp_die(__('您没有足够权限访问此页面。', 'wpcomments'));
         }
-
-        // Display update message if settings were just updated
-        if (isset($_GET['updated']) && $_GET['updated'] == 'true') {
-            echo '<div class="notice notice-success is-dismissible"><p>' .
-                __('网络设置已保存。', 'wpcomments') .
-                '</p></div>';
-        }
+        // 成功提示统一交由前端 JS 的 #wpcomments-status 控制，避免重复提示
         
         // Get all network options
         $disable_comments = get_site_option('wpcomments_disable_comments', false);
@@ -636,7 +630,7 @@ class WPComments_Network_Settings {
                 break;
         }
         
-        wp_redirect(add_query_arg(array('page' => $this->page_slug, 'updated' => 'true', 'tab' => $tab), network_admin_url('settings.php')));
+        wp_redirect(add_query_arg(array('page' => $this->page_slug, 'settings-updated' => 'true', 'tab' => $tab), network_admin_url('settings.php')));
         exit;
     }
     
@@ -654,6 +648,39 @@ class WPComments_Network_Settings {
         );
     }
     
+    
+    public function enqueue_admin_assets($hook) {
+        if ('settings_page_' . $this->page_slug !== $hook) {
+            return;
+        }
+
+        // 脚本
+        wp_enqueue_script('jquery');
+        wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
+
+        // 样式
+        wp_enqueue_style(
+            'wpcomments-admin',
+            WPCOMMENTS_URL . 'assets/css/admin.css',
+            [],
+            WPCOMMENTS_VERSION
+        );
+
+        // 本地化数据
+        wp_localize_script('wpcomments-admin', 'wpcomments', [
+            'nonce' => wp_create_nonce('wpcomments_admin_nonce'),
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'plugin_url' => WPCOMMENTS_URL,
+            'assets_url' => WPCOMMENTS_URL . 'assets/',
+            'is_network_admin' => '1',
+            'is_multisite' => is_multisite() ? '1' : '0',
+        ]);
+
+        wp_localize_script('wpcomments-admin', 'wpcomments_l10n', [
+            'settings_saved' => __('设置已成功保存。', 'wpcomments')
+        ]);
+    }
+
     public static function get_effective_setting($setting_name, $default = false) {
         if (!is_multisite()) {
             return get_option($setting_name, $default);
