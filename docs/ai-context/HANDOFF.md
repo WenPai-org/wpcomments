@@ -13,3 +13,4 @@
 - 未完成产品决策：前台待审私密评论可见性；全网统计语义；未实现的同步/导出/导入；死 `includes/modules/*` wrapper 的弃用窗口。
 - 完整证据与拆分路线：`docs/audits/wpcomments-audit-2026-08-09.md`。
 - 最终审计包：`/tmp/wpcomments-2.0.0-audit-final.zip`，SHA-256 `f9e9fa31d46befd5ebc205f4a79ea70660b8844a375b73a290b2d491257dd858`；仅测试产物，未发布。
+- Git 交付：提交 `4c12d16` 已推送到 `codex/wpcomments-audit-hardening`；PR `https://github.com/WenPai-org/wpcomments/pull/1` 已创建，未合并。

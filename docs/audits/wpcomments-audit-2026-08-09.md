@@ -128,3 +128,10 @@
 - **2.0.1**：只交付本次确定性修复、数据库升级、保守默认值、真实运行测试和发布门闸基线，不新增功能。
 - **2.1**：统一设置 schema 和 effective-setting API；把邮件/常用回复/审核信息纳入模块接口；处理 wrapper 弃用；补旧表升级 fixture、全网统计和真实导出。
 - **2.2**：以 Plugin Check/PHPCS/PHPStan 的可执行基线为门闸，逐页修复转义/i18n，建立 tag、签名包、升级/回滚矩阵。
+
+## 8. 隔离交付
+
+- 首个修复提交：`4c12d16`（`Audit and harden WPComments feature suite`）。
+- 分支：`codex/wpcomments-audit-hardening`。
+- Pull Request：<https://github.com/WenPai-org/wpcomments/pull/1>。
+- PR 未合并，未创建 tag/release，未部署任何站点。
