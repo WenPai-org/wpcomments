@@ -200,3 +200,7 @@ Playwright 使用真实 Chromium 登录一次性 WordPress，打开 `options-gen
 3. 仓库没有 GitHub Actions workflow，PR head 没有可见 check run/job；CI **NOT PASS**，不能用 GitHub combined status 的 pending 代替实际 job。
 4. FeiCode 仍缺对应仓库；GitHub 是用户指定真源，但内部镜像/备份治理未闭环。
 5. 未创建 tag/release、未发布、未部署、未合并 PR。
+
+### 9.6 PR #1 CI 实际状态
+
+2026-08-09 针对 head `ddc7d71ab3b5a2f2f550eda0abf7547ef3f17ec2` 查询 GitHub REST API：PR 为 Open、未合并；combined status=`pending`，但 `total_count=0`、statuses 为空；check runs=0、check suites=0、该 head workflow runs=0。仓库没有 workflow，因此没有可逐项列出的 CI job；此处判定 **NOT PASS（无 CI 样本）**，不是“CI 正在通过”。
