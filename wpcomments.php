@@ -27,10 +27,10 @@ define("WPCOMMENTS_PLUGIN_FILE", __FILE__);
 define("WPCOMMENTS_URL", plugin_dir_url(__FILE__));
 define("WPCOMMENTS_PATH", plugin_dir_path(__FILE__));
 
-$network_activated = is_network_wide(__FILE__);
+$wpcomments_network_activated = is_network_wide(__FILE__);
 
 if (!defined("WPCOMMENTS_IS_NETWORK")) {
-    define("WPCOMMENTS_IS_NETWORK", $network_activated);
+    define("WPCOMMENTS_IS_NETWORK", $wpcomments_network_activated);
 }
 
 add_action("plugins_loaded", __NAMESPACE__ . "\init");

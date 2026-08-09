@@ -204,3 +204,51 @@ Playwright 使用真实 Chromium 登录一次性 WordPress，打开 `options-gen
 ### 9.6 PR #1 CI 实际状态
 
 2026-08-09 针对 head `ddc7d71ab3b5a2f2f550eda0abf7547ef3f17ec2` 查询 GitHub REST API：PR 为 Open、未合并；combined status=`pending`，但 `total_count=0`、statuses 为空；check runs=0、check suites=0、该 head workflow runs=0。仓库没有 workflow，因此没有可逐项列出的 CI job；此处判定 **NOT PASS（无 CI 样本）**，不是“CI 正在通过”。
+
+## 10. [CX] 第四轮发布门收口
+
+### 10.1 92 条 Plugin Check warnings 与 PHPCS 分桶
+
+第四轮对第三轮的原始结果逐条分桶；发布范围没有 vendor 第三方依赖，也不含 tests、docs、`.github` 或构建配置，因此这些结果均来自第一方运行时代码/readme，不把开发文件或第三方问题算给产品代码。
+
+| 工具/来源 | 第一方代码 | 构建产物/开发文件 | 第三方 | 判定 |
+|---|---:|---:|---:|---|
+| Plugin Check（第三轮） | 92 warnings | 0 | 0 | 38 nonce/input 上下文、30 DB、14 全局前缀、6 WordPress.org、4 comment-meta 性能 |
+| Plugin Check（第四轮修复后发布范围） | 76 warnings / 0 errors | 0 | 0 | **NOT PASS**；移除 2 个重复 textdomain loader，并给 14 个入口/卸载全局变量加插件前缀 |
+| PHPCS WordPress-Extra（修复后） | 11926 errors / 490 warnings，36 files | 0（tests/build/vendor 已排除） | 0 | **NOT PASS**；12298 项可自动修复，主体是历史缩进/括号空格，不为清零做全仓格式改写 |
+
+PHPCS 规则 Top：`SpacesUsed` 5720、函数调用左右括号空格各 1741、行尾多余空格 386、控制结构括号空格各 340、数组箭头对齐 264。文件 Top：`includes/class-wpcomments-settings.php` 2223/87、`includes/class-wpcomments-email-notification.php` 1521/95、`includes/class-wpcomments-network-settings.php` 1350/56、`includes/class-wpcomments-frequently-replies.php` 877/65、`includes/class-wpcomments-disable-mode.php` 676/9。
+
+剩余 76 条 Plugin Check warnings：
+
+- 38 条 nonce/input：公开评论提交钩子没有插件自建 nonce，后台保存入口则已在上游完成 capability + nonce；2 条 replies 数组在下一步逐项 sanitize。这些不是已证明的权限绕过，不能为了扫描清零破坏原生评论、REST 或程序化评论兼容。
+- 30 条 DB：表名都来自可信 `$wpdb->prefix`，值参数使用 prepare/insert；WordPress 5.9 不支持 `%i` 标识符占位。仍是 WordPress.org review debt，不判 SQL 注入 PASS。
+- 4 条订阅列表 meta query：是真实的大站性能债务，需在 2.1 的订阅索引/独立表方案处理。
+- 4 条 WordPress.org：3 条 `WPComments/wpcomments` 受限商标/slug，1 条为兼容最低 WordPress 5.9 保留的主入口 `load_plugin_textdomain()`。重命名会影响 slug、更新、Text Domain 和数据迁移，属于产品/发布决策，本轮不擅自改名。
+
+PHPCompatibilityWP 7.4+ 为 **PASS**；这两份扫描没有证明新的 PHP 未来兼容 fatal/deprecation。PHPStan level 5 在固定依赖、单进程、2 GiB 上整组 **PASS，0 errors**；为了避免静态 bootstrap 把网络常量折叠成单一分支，网络状态展示通过返回 `bool` 的内部方法保留单站/多站分析路径，没有加入错误 baseline 或 blanket ignore。
+
+### 10.2 最终代码与真实 WordPress 矩阵
+
+- WordPress 7.0.2 / PHP 8.3.33 单站 disposable fixture：runtime、邮件 pending/approved、disable、REST、XML-RPC 全部 PASS，命令 exit 0。
+- WordPress 7.0.2 / PHP 8.3.33 两站 multisite disposable fixture：表/cron/网络覆盖 PASS，命令 exit 0。
+- 第三轮的 WordPress 5.9.3 / PHP 7.4.33 与 PHP 8.0.30 结果继续保留；第四轮没有用 PHP 8.3 单一组合替代最低兼容证据。
+- `tests/run-ci-core.sh` 使用独立 Compose project、随机宿主端口和 disposable volumes；结束时 `down -v`，不连接生产数据库。
+
+### 10.3 最小 GitHub Actions 与发布 ZIP
+
+- 新增 `.github/workflows/ci.yml`，jobs 为 `lint`、`php-compatibility`、`phpstan`、4-cell `wordpress-core`、`release-zip`。
+- Actions 固定 major：`actions/checkout@v4`、`shivammathur/setup-php@v2`；Composer lock 固定 PHPCS 3.13.6、PHPCompatibilityWP 2.1.8、PHPStan 2.2.8（传递依赖）、phpstan-wordpress 2.0.3、WPCS 3.4.1。所有 jobs 只需 `contents: read`，不使用生产 secret。
+- `tests/check-package.sh` 构建后显式拒绝 `.git`、`.github`、docs、tests、vendor、node_modules、Composer/npm/PHPCS/PHPStan 文件、`.env` 和 HANDOFF；审计报告和交接文档不会进入 ZIP。
+- 插件头 `2.0.0`、readme Stable tag `2.0.0`、最低 WordPress `5.9`、PHP `7.4` 保持一致；默认卸载仍保留数据。
+
+### 10.4 发布门
+
+| 门闸 | 结果 | 依据 |
+|---|---|---|
+| 代码测试 | **PASS** | PHP lint/static contracts；WP 7.0.2/PHP 8.3 单站+多站；保留 WP 5.9.3/PHP 7.4/8.0、迁移和 E2E 结果 |
+| 静态检查 | **NOT PASS** | PHPCompatibility/PHPStan PASS；Plugin Check 0 errors/76 warnings、PHPCS 11926/490 未清 |
+| 自动 CI | **PENDING/NOT PASS** | workflow 已加入；必须以最终 PR head 的实际 GitHub check runs 为准 |
+| FeiCode 真源治理 | **NOT PASS** | GitHub 是用户指定真源；FeiCode 仍没有可见对应仓库/镜像 |
+
+PR #1 继续保持 Open；未合并、未发布、未部署。WordPress.org slug 重命名、订阅大站索引以及剩余 DB/nonce review debt 是仍未关闭的发布阻断项。

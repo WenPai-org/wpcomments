@@ -28,11 +28,6 @@ class WPComments_Frequently_Replies {
         add_action('wp_ajax_wpcomments_auto_save_replies', array($this, 'auto_save_replies_ajax'));
         add_action('wp_ajax_closed-postboxes', array($this, 'handle_postbox_ajax'));
         add_action('wp_ajax_meta-box-order', array($this, 'handle_postbox_ajax'));
-        add_action('init', array($this, 'load_textdomain'));
-    }
-    
-    public function load_textdomain() {
-        load_plugin_textdomain('wpcomments', false, dirname(plugin_basename(WPCOMMENTS_PLUGIN_FILE)) . '/languages/');
     }
     
     public function add_admin_menu() {

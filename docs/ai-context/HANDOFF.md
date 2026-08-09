@@ -24,3 +24,12 @@
 - PHPStan level 5 逐文件 36/36 exit 0；Plugin Check 发布范围 0 errors / 92 warnings；PHPCS WordPress-Extra 11950 errors / 490 warnings，仍 NOT PASS。
 - 发布 ZIP 排除 dev/test/敏感文件；版本头、Stable tag、最低 WordPress/PHP 一致；默认卸载保留通过。最终 ZIP SHA-256 `c5ae7c4f96ab1859ba512bc27f8f2678002d23eb0874e724a6ee2438fcc5ea35`。
 - GitHub 仓库没有 Actions workflow，PR head 无实际 CI job；CI 仍是发布阻断。FeiCode 缺仓治理问题保留。
+
+## 2026-08-09 — [CX] 第四轮 CI 与发布门收口
+
+- 同一 PR #1 新增最小 GitHub Actions：lint、PHPCompatibilityWP、PHPStan、WordPress 5.9/PHP 7.4+8.0、WordPress 7.0.2/PHP 8.3 单站+多站、release ZIP；只读权限，不使用生产 secret。
+- 第一方警告定向修复后 Plugin Check 发布范围为 0 errors / 76 warnings；PHPCS WordPress-Extra 为 11926 errors / 490 warnings，仍 NOT PASS。没有 vendor/构建产物混入这两个发布范围数字。
+- PHPCompatibilityWP 7.4+ PASS；PHPStan level 5 固定依赖、单进程、2 GiB 整组 0 errors PASS。
+- WordPress 7.0.2/PHP 8.3.33 最终单站 runtime/email/disable/REST/XML-RPC 与两站 multisite PASS；第三轮 WP5.9.3/PHP7.4/8.0 证据保留。
+- 发布包检查明确拒绝 `.github`、tests、docs/HANDOFF、vendor、Composer/npm/静态配置和敏感/临时文件；未发布。
+- 发布门：代码测试 PASS；静态检查 NOT PASS；自动 CI 等最终 head 的真实 checks；FeiCode 真源治理 NOT PASS。PR 保持 Open，禁止合并、发布、部署。

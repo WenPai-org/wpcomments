@@ -15,7 +15,7 @@ if (!defined('WPCOMMENTS_VERSION')) {
     define('WPCOMMENTS_VERSION', '2.0.0');
 }
 if (!defined('WPCOMMENTS_IS_NETWORK')) {
-    define('WPCOMMENTS_IS_NETWORK', (bool) getenv('WPCOMMENTS_STATIC_NETWORK'));
+    define('WPCOMMENTS_IS_NETWORK', false);
 }
 if (!defined('WPCOMMENTS_DB_VERSION')) {
     define('WPCOMMENTS_DB_VERSION', 2);

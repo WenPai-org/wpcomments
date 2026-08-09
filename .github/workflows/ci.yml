@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/wpcomments-audit-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: PHP syntax
+        run: find . -path './vendor' -prune -o -name '*.php' -type f -print0 | xargs -0 -n1 php -l
+      - name: Static contracts
+        run: tests/static-contracts.sh
+
+  php-compatibility:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: PHP 7.4 and newer compatibility
+        run: vendor/bin/phpcs --standard=PHPCompatibilityWP --runtime-set testVersion 7.4- --extensions=php --ignore='*/vendor/*,*/tests/*,*/build/*' .
+
+  phpstan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress --memory-limit=2G
+
+  wordpress-core:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: wp59-php74-single
+            wp: '5.9'
+            wp_image: wordpress:5.9-php7.4-apache
+            cli_image: wordpress:cli-php7.4
+            mode: single
+          - name: wp59-php80-single
+            wp: '5.9'
+            wp_image: wordpress:5.9-php8.0-apache
+            cli_image: wordpress:cli-php8.0
+            mode: single
+          - name: wp70-php83-single
+            wp: '7.0.2'
+            wp_image: wordpress:7.0.2-php8.3-apache
+            cli_image: wordpress:cli-php8.3
+            mode: single
+          - name: wp70-php83-multisite
+            wp: '7.0.2'
+            wp_image: wordpress:7.0.2-php8.3-apache
+            cli_image: wordpress:cli-php8.3
+            mode: multisite
+    name: WordPress ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run disposable WordPress fixture
+        env:
+          WP_VERSION: ${{ matrix.wp }}
+          WP_IMAGE: ${{ matrix.wp_image }}
+          CLI_IMAGE: ${{ matrix.cli_image }}
+          SITE_MODE: ${{ matrix.mode }}
+        run: tests/run-ci-core.sh
+
+  release-zip:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and inspect release ZIP
+        run: tests/check-package.sh /tmp/wpcomments-ci.zip

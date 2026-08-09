@@ -20,7 +20,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8895:80"
+      - "${WPCOMMENTS_HOST_PORT:-8895}:80"
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress

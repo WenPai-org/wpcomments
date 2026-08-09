@@ -997,7 +997,7 @@ class WPComments_Settings
                 </tr>
                 <tr>
                     <th><?php esc_html_e('网络激活', 'wpcomments'); ?></th>
-                    <td><?php echo esc_html(WPCOMMENTS_IS_NETWORK ? __('是', 'wpcomments') : __('否', 'wpcomments')); ?></td>
+                    <td><?php echo esc_html($this->is_network_activated() ? __('是', 'wpcomments') : __('否', 'wpcomments')); ?></td>
                 </tr>
             </table>
 
@@ -1025,6 +1025,14 @@ class WPComments_Settings
         <p class="submit"><button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button></p>
         </form>
 <?php
+    }
+
+    /**
+     * Return whether WordPress network-activated the plugin.
+     */
+    private function is_network_activated(): bool
+    {
+        return (bool) WPCOMMENTS_IS_NETWORK;
     }
 
 

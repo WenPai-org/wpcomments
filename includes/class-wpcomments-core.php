@@ -34,7 +34,6 @@ class WPComments_Core {
     }
     
     private function init_hooks() {
-        add_action('init', array($this, 'load_textdomain'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_assets'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         
@@ -98,10 +97,6 @@ class WPComments_Core {
             self::$instance = new self($feature_settings);
         }
         return self::$instance;
-    }
-    
-    public function load_textdomain() {
-        load_plugin_textdomain('wpcomments', false, dirname(plugin_basename(__FILE__)) . '/languages/');
     }
     
     public function enqueue_frontend_assets() {
