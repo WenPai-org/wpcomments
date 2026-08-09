@@ -248,7 +248,9 @@ PHPCompatibilityWP 7.4+ 为 **PASS**；这两份扫描没有证明新的 PHP 未
 |---|---|---|
 | 代码测试 | **PASS** | PHP lint/static contracts；WP 7.0.2/PHP 8.3 单站+多站；保留 WP 5.9.3/PHP 7.4/8.0、迁移和 E2E 结果 |
 | 静态检查 | **NOT PASS** | PHPCompatibility/PHPStan PASS；Plugin Check 0 errors/76 warnings、PHPCS 11926/490 未清 |
-| 自动 CI | **PENDING/NOT PASS** | workflow 已加入；必须以最终 PR head 的实际 GitHub check runs 为准 |
+| 自动 CI | **PASS** | implementation head `b28da3f` 的 push/PR 两个 Actions runs（31311707979、31311708525）均完成；16/16 check runs success |
 | FeiCode 真源治理 | **NOT PASS** | GitHub 是用户指定真源；FeiCode 仍没有可见对应仓库/镜像 |
+
+implementation head `b28da3f6100e9aec39763291b0093acc6f71bbdb` 的两个 workflow runs 均完成：lint、PHPCompatibility、PHPStan、release ZIP、WP5.9/PHP7.4、WP5.9/PHP8.0、WP7.0.2/PHP8.3 单站与多站共 16/16 check runs 为 success。最终测试 ZIP `/tmp/wpcomments-fourth-final.zip` 为 66 entries，SHA-256 `5067d43ea6348edd5f7ba5982b082ae3cbd31322f01ec645a5d133aee8f7f86c`。
 
 PR #1 继续保持 Open；未合并、未发布、未部署。WordPress.org slug 重命名、订阅大站索引以及剩余 DB/nonce review debt 是仍未关闭的发布阻断项。

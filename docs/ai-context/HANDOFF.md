@@ -32,4 +32,5 @@
 - PHPCompatibilityWP 7.4+ PASS；PHPStan level 5 固定依赖、单进程、2 GiB 整组 0 errors PASS。
 - WordPress 7.0.2/PHP 8.3.33 最终单站 runtime/email/disable/REST/XML-RPC 与两站 multisite PASS；第三轮 WP5.9.3/PHP7.4/8.0 证据保留。
 - 发布包检查明确拒绝 `.github`、tests、docs/HANDOFF、vendor、Composer/npm/静态配置和敏感/临时文件；未发布。
-- 发布门：代码测试 PASS；静态检查 NOT PASS；自动 CI 等最终 head 的真实 checks；FeiCode 真源治理 NOT PASS。PR 保持 Open，禁止合并、发布、部署。
+- implementation head `b28da3f` 的 push/PR 两个 Actions runs 共 16/16 check runs success：lint、PHPCompatibility、PHPStan、release ZIP 和四个 WordPress matrix cells 全部 PASS。
+- 发布门：代码测试 PASS；静态检查 NOT PASS；自动 CI PASS；FeiCode 真源治理 NOT PASS。PR 保持 Open，禁止合并、发布、部署。最终测试 ZIP SHA-256 `5067d43ea6348edd5f7ba5982b082ae3cbd31322f01ec645a5d133aee8f7f86c`。
