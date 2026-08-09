@@ -47,19 +47,22 @@ class Validation_Module implements WPComments_Module_Interface {
     }
     
     public function validate_comment_submission($post_id) {
-        if (empty($_POST['comment'])) {
+        $comment = isset($_POST['comment']) ? trim(wp_unslash($_POST['comment'])) : '';
+        $author = isset($_POST['author']) ? trim(wp_unslash($_POST['author'])) : '';
+        $email = isset($_POST['email']) ? trim(wp_unslash($_POST['email'])) : '';
+        if ('' === $comment) {
             wp_die(__('评论内容不能为空', 'wpcomments'));
         }
         
-        if (empty($_POST['author']) && get_option('require_name_email')) {
+        if ('' === $author && get_option('require_name_email')) {
             wp_die(__('请输入您的姓名', 'wpcomments'));
         }
         
-        if (empty($_POST['email']) && get_option('require_name_email')) {
+        if ('' === $email && get_option('require_name_email')) {
             wp_die(__('请输入您的邮箱地址', 'wpcomments'));
         }
         
-        if (!empty($_POST['email']) && !is_email($_POST['email'])) {
+        if ('' !== $email && !is_email($email)) {
             wp_die(__('请输入有效的邮箱地址', 'wpcomments'));
         }
     }

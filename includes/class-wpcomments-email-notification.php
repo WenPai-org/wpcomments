@@ -20,8 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WPComments_Email_Notification {
     
     const VERSION = '1.0.0';
+
+    /** @var bool */
+    private static $hooks_registered = false;
     
     public function __construct() {
+        if (self::$hooks_registered) {
+            return;
+        }
+        self::$hooks_registered = true;
         add_action('wp_insert_comment', array($this, 'comment_notification'), 99, 2);
         add_action('wp_set_comment_status', array($this, 'comment_status_update'), 99, 2);
         add_filter('preprocess_comment', array($this, 'verify_comment_meta_data'));
@@ -37,7 +44,9 @@ class WPComments_Email_Notification {
     }
     
     public function init() {
-        $request_uri = $_SERVER['REQUEST_URI'];
+        $request_uri = isset($_SERVER['REQUEST_URI'])
+            ? wp_unslash($_SERVER['REQUEST_URI'])
+            : '';
         if (preg_match('/wpcomments\/unsubscribe/', $request_uri)) {
             $comment_id = filter_input(INPUT_GET, 'comment', FILTER_SANITIZE_NUMBER_INT);
             $comment = get_comment($comment_id);
@@ -47,21 +56,17 @@ class WPComments_Email_Notification {
                 exit;
             }
 
-            $user_key = htmlspecialchars($_GET['key']);
+            $user_key = isset($_GET['key']) ? sanitize_text_field(wp_unslash($_GET['key'])) : '';
             $real_key = $this->secret_key($comment_id);
 
-            if ($user_key != $real_key) {
+            if (!$user_key || !hash_equals($real_key, $user_key)) {
                 echo 'Invalid request.';
                 exit;
             }
 
             $uri = get_permalink($comment->comment_post_ID);
             $this->persist_subscription_opt_out($comment_id);
-
-            echo '<!doctype html><html><head><meta charset="utf-8"><title>' . get_bloginfo('name') . '</title></head><body>';
-            echo '<p>您的评论订阅已取消。</p>';
-            echo '<script type="text/javascript">setTimeout(function() { window.location.href="' . $uri . '"; }, 3000);</script>';
-            echo '</body></html>';
+            wp_safe_redirect($uri ?: home_url('/'));
             exit;
         }
     }
@@ -183,7 +188,7 @@ class WPComments_Email_Notification {
                 <tr>
                     <th scope="row">订阅管理</th>
                     <td>
-                        <a href="<?php echo admin_url('edit-comments.php?page=wpcomments_email_subscriptions'); ?>" class="button">管理订阅列表</a>
+                        <a href="<?php echo esc_url(admin_url('edit-comments.php?page=wpcomments_email_subscriptions')); ?>" class="button">管理订阅列表</a>
                         <p class="description">查看和管理所有评论订阅</p>
                     </td>
                 </tr>
@@ -194,8 +199,8 @@ class WPComments_Email_Notification {
         <?php
     }
     
-    public function comment_notification($comment_id, $comment) {
-        if (!$comment || $comment->comment_approved !== '1') {
+    public function comment_notification($comment_id, $comment, $send_admin_notification = true) {
+        if (!$comment instanceof \WP_Comment) {
             return;
         }
 
@@ -204,7 +209,13 @@ class WPComments_Email_Notification {
             return;
         }
 
-        $this->send_admin_notification_email($comment, $post);
+        if ($send_admin_notification && in_array($comment->comment_approved, array('0', '1'), true)) {
+            $this->send_admin_notification_email($comment, $post);
+        }
+
+        if ($comment->comment_approved !== '1') {
+            return;
+        }
 
         if ($comment->comment_parent == 0) {
             return;
@@ -230,8 +241,10 @@ class WPComments_Email_Notification {
     public function comment_status_update($comment_id, $comment_status) {
         $comment = get_comment($comment_id);
 
-        if ($comment_status == 'approve') {
-            $this->comment_notification($comment->comment_ID, $comment);
+        if ('approve' === $comment_status && $comment instanceof \WP_Comment) {
+            // Admins were notified when the comment was created. Approval only
+            // unlocks reply notifications and must not send a duplicate admin mail.
+            $this->comment_notification($comment->comment_ID, $comment, false);
         }
     }
     
@@ -239,7 +252,7 @@ class WPComments_Email_Notification {
         $label = apply_filters('wpcomments_email_checkbox_label', '有人回复时邮件通知我');
         $checked = $this->get_default_checked() ? 'checked' : '';
 
-        $subscribe_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_subscribe_to_comment"><input id="wpcomments_subscribe_to_comment" name="wpcomments_subscribe_to_comment" type="checkbox" value="on" ' . $checked . '>' . $label . '</label></p>';
+        $subscribe_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_subscribe_to_comment"><input id="wpcomments_subscribe_to_comment" name="wpcomments_subscribe_to_comment" type="checkbox" value="on" ' . $checked . '>' . wp_kses_post($label) . '</label></p>';
 
         $fields['wpcomments_subscribe_to_comment'] = apply_filters('wpcomments_comment_subscribe_html', $subscribe_html, $label, $this->get_default_checked());
 
@@ -257,7 +270,7 @@ class WPComments_Email_Notification {
             $label = apply_filters('wpcomments_email_checkbox_label', '有人回复时邮件通知我');
             $checked = $this->get_default_checked() ? 'checked' : '';
 
-            $subscribe_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_subscribe_to_comment"><input id="wpcomments_subscribe_to_comment" name="wpcomments_subscribe_to_comment" type="checkbox" value="on" ' . $checked . '>' . $label . '</label></p>';
+            $subscribe_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_subscribe_to_comment"><input id="wpcomments_subscribe_to_comment" name="wpcomments_subscribe_to_comment" type="checkbox" value="on" ' . $checked . '>' . wp_kses_post($label) . '</label></p>';
 
             $checkbox = apply_filters('wpcomments_comment_subscribe_html', $subscribe_html, $label, $this->get_default_checked());
 
@@ -270,7 +283,10 @@ class WPComments_Email_Notification {
     }
     
     public function persist_subscription_opt_in($comment_id) {
-        $value = (isset($_POST['wpcomments_subscribe_to_comment']) && $_POST['wpcomments_subscribe_to_comment'] == 'on') ? 'on' : 'off';
+        $value = isset($_POST['wpcomments_subscribe_to_comment'])
+            && 'on' === sanitize_key(wp_unslash($_POST['wpcomments_subscribe_to_comment']))
+            ? 'on'
+            : 'off';
         return add_comment_meta($comment_id, 'wpcomments_subscribe_to_comment', $value, true);
     }
     
@@ -317,11 +333,11 @@ class WPComments_Email_Notification {
     }
     
     private function send_admin_notification_email($comment, $post) {
-        if (!$this->get_setting('wpcomments_admin_notification_enabled', false)) {
+        if (!$this->get_setting('wpcomments_email_admin_notification', false)) {
             return;
         }
         
-        $admin_email = $this->get_setting('wpcomments_admin_notification_email', get_option('admin_email'));
+        $admin_email = $this->get_setting('wpcomments_email_admin_email', get_option('admin_email'));
         if (empty($admin_email)) {
             return;
         }
@@ -368,10 +384,12 @@ class WPComments_Email_Notification {
             $post_title = $post->post_title;
             $post_url = get_permalink($post->ID);
             
-            $approve_url = admin_url('comment.php?action=approve&c=' . $comment->comment_ID);
-            $spam_url = admin_url('comment.php?action=spam&c=' . $comment->comment_ID);
-            $delete_url = admin_url('comment.php?action=delete&c=' . $comment->comment_ID);
-            $unsubscribe_url = '#';
+            $moderation_links = $this->get_admin_moderation_links($comment);
+            $approve_url = $moderation_links['approve_url'];
+            $spam_url = $moderation_links['spam_url'];
+            $delete_url = $moderation_links['delete_url'];
+            $delete_label = $moderation_links['delete_label'];
+            $settings_url = admin_url('options-general.php?page=wpcomments-settings&tab=email');
             
             include $template_path;
             return ob_get_clean();
@@ -380,17 +398,55 @@ class WPComments_Email_Notification {
         $body = '<html><body>';
         $body .= '<h2>新评论通知</h2>';
         $body .= '<p>您的网站收到一条新评论：</p>';
-        $body .= '<p><strong>文章：</strong>' . $post->post_title . '</p>';
-        $body .= '<p><strong>评论者：</strong>' . $comment->comment_author . '</p>';
-        $body .= '<p><strong>邮箱：</strong>' . $comment->comment_author_email . '</p>';
+        $body .= '<p><strong>文章：</strong>' . esc_html($post->post_title) . '</p>';
+        $body .= '<p><strong>评论者：</strong>' . esc_html($comment->comment_author) . '</p>';
+        $body .= '<p><strong>邮箱：</strong>' . esc_html($comment->comment_author_email) . '</p>';
         $body .= '<p><strong>内容：</strong></p>';
-        $body .= '<blockquote>' . wpautop($comment->comment_content) . '</blockquote>';
-        $body .= '<p><a href="' . admin_url('comment.php?action=approve&c=' . $comment->comment_ID) . '">批准评论</a> | ';
-        $body .= '<a href="' . admin_url('comment.php?action=spam&c=' . $comment->comment_ID) . '">标记为垃圾</a> | ';
-        $body .= '<a href="' . admin_url('comment.php?action=delete&c=' . $comment->comment_ID) . '">删除评论</a></p>';
+        $body .= '<blockquote>' . wpautop(esc_html($comment->comment_content)) . '</blockquote>';
+
+        $moderation_links = $this->get_admin_moderation_links($comment);
+        $actions = array();
+        if (!empty($moderation_links['approve_url'])) {
+            $actions[] = '<a href="' . esc_url($moderation_links['approve_url']) . '">批准评论</a>';
+        }
+        $actions[] = '<a href="' . esc_url($moderation_links['spam_url']) . '">标记为垃圾</a>';
+        $actions[] = '<a href="' . esc_url($moderation_links['delete_url']) . '">' . esc_html($moderation_links['delete_label']) . '</a>';
+        $body .= '<p>' . implode(' | ', $actions) . '</p>';
         $body .= '</body></html>';
         
         return apply_filters('wpcomments_default_admin_email_body', $body, $comment, $post);
+    }
+
+    private function get_admin_moderation_links($comment) {
+        $comment_id = (int) $comment->comment_ID;
+        $approve_url = '';
+
+        if ('0' === $comment->comment_approved) {
+            $approve_url = wp_nonce_url(
+                admin_url('comment.php?action=approvecomment&c=' . $comment_id . '&noredir=1'),
+                'approve-comment_' . $comment_id
+            );
+        }
+
+        $spam_url = wp_nonce_url(
+            admin_url('comment.php?action=spamcomment&c=' . $comment_id . '&noredir=1'),
+            'delete-comment_' . $comment_id
+        );
+
+        $use_trash = defined('EMPTY_TRASH_DAYS') && EMPTY_TRASH_DAYS;
+        $delete_action = $use_trash ? 'trashcomment' : 'deletecomment';
+        $delete_label = $use_trash ? '移至回收站' : '永久删除评论';
+        $delete_url = wp_nonce_url(
+            admin_url('comment.php?action=' . $delete_action . '&c=' . $comment_id . '&noredir=1'),
+            'delete-comment_' . $comment_id
+        );
+
+        return array(
+            'approve_url' => $approve_url,
+            'spam_url' => $spam_url,
+            'delete_url' => $delete_url,
+            'delete_label' => $delete_label,
+        );
     }
     
     private function get_admin_email_subject($post) {
@@ -513,9 +569,9 @@ class WPComments_Email_Notification {
         );
 
         $privacy_policy_url = $this->get_privacy_policy_url();
-        $privacy_policy = "<a target='_blank' href='{$privacy_policy_url}'>(隐私政策)</a>";
+        $privacy_policy = '<a target="_blank" rel="noopener noreferrer" href="' . esc_url($privacy_policy_url) . '">(隐私政策)</a>';
 
-        $final_gdpr_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_gdpr"><input id="wpcomments_gdpr" name="wpcomments_gdpr" type="checkbox" value="yes" required="required">' . $label . ' ' . $privacy_policy . ' <span class="required">*</span></label></p>';
+        $final_gdpr_html = '<p class="comment-form-comment-subscribe"><label for="wpcomments_gdpr"><input id="wpcomments_gdpr" name="wpcomments_gdpr" type="checkbox" value="yes" required="required">' . wp_kses_post($label) . ' ' . $privacy_policy . ' <span class="required">*</span></label></p>';
 
         return apply_filters(
             'wpcomments_gdpr_checkbox_html',
@@ -526,20 +582,23 @@ class WPComments_Email_Notification {
     }
     
     private function save_settings() {
-        if (!wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('权限不足', 'wpcomments'));
+        }
+        if (!isset($_POST['wpcomments_email_nonce']) || !wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
             return;
         }
         
         $settings = array(
             'wpcomments_email_admin_notification' => isset($_POST['wpcomments_email_admin_notification']) ? 1 : 0,
-            'wpcomments_email_admin_email' => sanitize_email($_POST['wpcomments_email_admin_email']),
+            'wpcomments_email_admin_email' => isset($_POST['wpcomments_email_admin_email']) ? sanitize_email(wp_unslash($_POST['wpcomments_email_admin_email'])) : '',
             'wpcomments_email_default_subscribe' => isset($_POST['wpcomments_email_default_subscribe']) ? 1 : 0,
             'wpcomments_email_gdpr_enabled' => isset($_POST['wpcomments_email_gdpr_enabled']) ? 1 : 0,
-            'wpcomments_email_privacy_url' => sanitize_url($_POST['wpcomments_email_privacy_url']),
-            'wpcomments_email_from_email' => sanitize_email($_POST['wpcomments_email_from_email']),
-            'wpcomments_email_from_name' => sanitize_text_field($_POST['wpcomments_email_from_name']),
-            'wpcomments_email_subject_type' => sanitize_text_field($_POST['wpcomments_email_subject_type']),
-            'wpcomments_email_custom_subject' => sanitize_text_field($_POST['wpcomments_email_custom_subject'])
+            'wpcomments_email_privacy_url' => isset($_POST['wpcomments_email_privacy_url']) ? esc_url_raw(wp_unslash($_POST['wpcomments_email_privacy_url'])) : '',
+            'wpcomments_email_from_email' => isset($_POST['wpcomments_email_from_email']) ? sanitize_email(wp_unslash($_POST['wpcomments_email_from_email'])) : '',
+            'wpcomments_email_from_name' => isset($_POST['wpcomments_email_from_name']) ? sanitize_text_field(wp_unslash($_POST['wpcomments_email_from_name'])) : '',
+            'wpcomments_email_subject_type' => isset($_POST['wpcomments_email_subject_type']) && 'custom' === wp_unslash($_POST['wpcomments_email_subject_type']) ? 'custom' : 'default',
+            'wpcomments_email_custom_subject' => isset($_POST['wpcomments_email_custom_subject']) ? sanitize_text_field(wp_unslash($_POST['wpcomments_email_custom_subject'])) : ''
         );
         
         foreach ($settings as $key => $value) {
@@ -563,8 +622,9 @@ class WPComments_Email_Notification {
     
     public function admin_init() {
         // 处理在独立页面保存设置
-        if (isset($_GET['page']) && $_GET['page'] === 'wpcomments-email-settings') {
-            if (isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
+        $page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
+        if ('wpcomments-email-settings' === $page) {
+            if (isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
                 $this->save_settings();
                 $redirect = wp_get_referer();
                 if ($redirect) {
@@ -572,17 +632,17 @@ class WPComments_Email_Notification {
                 } else {
                     $redirect = add_query_arg('settings-updated', 'true', admin_url('edit-comments.php?page=wpcomments-email-settings'));
                 }
-                wp_redirect($redirect);
+                wp_safe_redirect($redirect);
                 exit;
             }
         }
 
         // 处理在主设置页面（通知标签页）中保存设置
-        if (isset($_GET['page']) && $_GET['page'] === 'wpcomments-settings') {
-            $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : '';
-            if ($tab === 'notifications' && isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce($_POST['wpcomments_email_nonce'], 'wpcomments_email_settings')) {
+        if ('wpcomments-settings' === $page) {
+            $tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
+            if ($tab === 'notifications' && isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
                 $this->save_settings();
-                wp_redirect(add_query_arg(array(
+                wp_safe_redirect(add_query_arg(array(
                     'page' => 'wpcomments-settings',
                     'tab' => 'notifications',
                     'settings-updated' => 'true'
@@ -629,8 +689,8 @@ class WPComments_Email_Notification {
      public function ajax_unsubscribe() {
          check_ajax_referer('wpcomments_ajax_nonce', 'nonce');
          
-         $comment_id = intval($_POST['comment_id']);
-         $key = sanitize_text_field($_POST['key']);
+         $comment_id = isset($_POST['comment_id']) ? absint($_POST['comment_id']) : 0;
+         $key = isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '';
          
          if (!$comment_id || !$key) {
              wp_die('Invalid request');
@@ -642,7 +702,7 @@ class WPComments_Email_Notification {
          }
          
          $real_key = $this->secret_key($comment_id);
-         if ($key !== $real_key) {
+         if (!hash_equals($real_key, $key)) {
              wp_die('Invalid key');
          }
          

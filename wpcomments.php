@@ -22,6 +22,7 @@ if (!defined("WPINC")) {
 }
 
 define("WPCOMMENTS_VERSION", "2.0.0");
+define("WPCOMMENTS_DB_VERSION", "2");
 define("WPCOMMENTS_PLUGIN_FILE", __FILE__);
 define("WPCOMMENTS_URL", plugin_dir_url(__FILE__));
 define("WPCOMMENTS_PATH", plugin_dir_path(__FILE__));
@@ -34,6 +35,7 @@ if (!defined("WPCOMMENTS_IS_NETWORK")) {
 
 add_action("plugins_loaded", __NAMESPACE__ . "\init");
 add_action("plugins_loaded", __NAMESPACE__ . "\load_textdomain");
+add_action("init", __NAMESPACE__ . "\maybe_upgrade_database", 5);
 add_action("admin_init", __NAMESPACE__ . '\register_general_settings_field');
 add_action("wpcomments_reinit_features", __NAMESPACE__ . '\reinit_features');
 
@@ -41,6 +43,11 @@ register_activation_hook(
     WPCOMMENTS_PLUGIN_FILE,
     __NAMESPACE__ . "\activate_wpcomments",
 );
+register_deactivation_hook(
+    WPCOMMENTS_PLUGIN_FILE,
+    __NAMESPACE__ . "\deactivate_wpcomments",
+);
+add_action("wp_initialize_site", __NAMESPACE__ . "\initialize_new_site", 20, 1);
 add_action(
     "wpcomments_cleanup_reports",
     __NAMESPACE__ . "\cleanup_old_reports",
@@ -207,16 +214,70 @@ function wpcomments_create_reports_table(): void
     $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         comment_id bigint(20) unsigned NOT NULL,
-        user_id bigint(20) unsigned NULL,
-        user_ip varchar(45) NOT NULL,
-        report_time datetime NOT NULL,
+        user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+        user_ip varchar(64) NOT NULL DEFAULT '',
+        user_ip_hash char(64) NOT NULL DEFAULT '',
+        reason varchar(255) NOT NULL DEFAULT '',
+        report_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        report_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
         PRIMARY KEY (id),
         KEY comment_id (comment_id),
         KEY user_id (user_id),
-        KEY user_ip (user_ip)
+        KEY user_ip_hash (user_ip_hash),
+        KEY report_date (report_date)
     ) {$charset_collate};";
     require_once ABSPATH . "wp-admin/includes/upgrade.php";
     dbDelta($sql);
+    $wpdb->query(
+        "UPDATE {$table_name} SET report_date = report_time WHERE report_date = '0000-00-00 00:00:00' AND report_time <> '0000-00-00 00:00:00'"
+    );
+    update_option("wpcomments_db_version", WPCOMMENTS_DB_VERSION, false);
+}
+
+/**
+ * Upgrade the current site's report schema lazily.
+ */
+function maybe_upgrade_database(): void
+{
+    if ((string) get_option("wpcomments_db_version", "") !== WPCOMMENTS_DB_VERSION) {
+        wpcomments_create_reports_table();
+    }
+}
+
+/**
+ * Initialize storage for sites created after network activation.
+ *
+ * @param \WP_Site $site New site object.
+ */
+function initialize_new_site($site): void
+{
+    if (!is_multisite() || !is_plugin_active_for_network(plugin_basename(WPCOMMENTS_PLUGIN_FILE))) {
+        return;
+    }
+
+    switch_to_blog((int) $site->blog_id);
+    wpcomments_create_reports_table();
+    wpcomments_schedule_cleanup();
+    restore_current_blog();
+}
+
+/**
+ * Remove scheduled jobs without deleting comments, options, or reports.
+ *
+ * @param bool $network_wide Whether the plugin is network deactivated.
+ */
+function deactivate_wpcomments($network_wide): void
+{
+    if (is_multisite() && $network_wide) {
+        foreach (get_sites(["fields" => "ids"]) as $site_id) {
+            switch_to_blog((int) $site_id);
+            wp_clear_scheduled_hook("wpcomments_cleanup_reports");
+            restore_current_blog();
+        }
+        return;
+    }
+
+    wp_clear_scheduled_hook("wpcomments_cleanup_reports");
 }
 
 /**
@@ -249,9 +310,10 @@ function cleanup_old_reports(): void
             "wpcomments_report_retention_days",
             \apply_filters("wpcomments_report_retention_days", 90),
         ));
+    $days = max(1, min(3650, $days));
     $wpdb->query(
         $wpdb->prepare(
-            "DELETE FROM {$table_name} WHERE report_time < ( NOW() - INTERVAL %d DAY )",
+            "DELETE FROM {$table_name} WHERE report_date < ( NOW() - INTERVAL %d DAY )",
             $days,
         ),
     );

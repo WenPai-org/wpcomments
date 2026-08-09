@@ -40,7 +40,7 @@
                         showMessage(wpcommentsReport.thankYouMessage, 'success');
                     } else {
                         // 举报失败
-                        var errorMsg = response.data || wpcommentsReport.errorMessage;
+                        var errorMsg = typeof response.data === 'string' ? response.data : wpcommentsReport.errorMessage;
                         
                         if (errorMsg.indexOf('already reported') !== -1) {
                             $button.replaceWith('<span class="wpcomments-already-reported">已举报</span>');
@@ -78,12 +78,12 @@
                     break;
             }
             
-            var $message = $('<div class="' + messageClass + '" style="' +
+            var $message = $('<div>').addClass(messageClass).attr('style',
                 'position: fixed; top: 20px; right: 20px; z-index: 9999; ' +
                 'padding: 15px; border: 1px solid ' + borderColor + '; ' +
                 'background-color: ' + bgColor + '; color: ' + textColor + '; ' +
                 'border-radius: 4px; max-width: 300px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);' +
-                '">' + message + '</div>');
+                '').text(message);
             
             $('body').append($message);
             

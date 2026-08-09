@@ -101,7 +101,7 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     
     public function prevent_private_comment_approval($comment_id, $comment_status) {
         if (($comment_status === 'approve' || $comment_status === '1') && $this->is_private_comment($comment_id)) {
-            wp_set_comment_status($comment_id, 0);
+            wp_set_comment_status($comment_id, 'hold');
             if (wp_doing_ajax()) {
                 wp_send_json_error(__('Private comments cannot be made public', 'wpcomments'));
             }

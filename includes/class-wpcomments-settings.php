@@ -292,28 +292,16 @@ class WPComments_Settings
             wp_die(__('You do not have sufficient permissions to access this page.'));
         }
         
-        // 确定是哪个标签页的提交
-        // 调试日志：记录提交的nonce和动作（始终记录）
-        error_log('[WPComments] handle_form_submission POST keys: ' . implode(',', array_keys($_POST)));
-        if (isset($_POST['wpcomments_features_nonce'])) {
-            $debug_verify = wp_verify_nonce($_POST['wpcomments_features_nonce'], 'wpcomments_features_action') ? 'true' : 'false';
-            error_log('[WPComments] features_nonce present, verify=' . $debug_verify . ', value=' . sanitize_text_field($_POST['wpcomments_features_nonce']));
-        }
-        if (isset($_POST['wpcomments_basic_nonce'])) {
-            $debug_verify_basic = wp_verify_nonce($_POST['wpcomments_basic_nonce'], 'wpcomments_basic_action') ? 'true' : 'false';
-            error_log('[WPComments] basic_nonce present, verify=' . $debug_verify_basic);
-        }
-
         $tab = 'basic';
-        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce($_POST['wpcomments_basic_nonce'], 'wpcomments_basic_action')) {
+        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_basic_nonce']), 'wpcomments_basic_action')) {
             $tab = 'basic';
-        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce($_POST['wpcomments_features_nonce'], 'wpcomments_features_action')) {
+        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_features_nonce']), 'wpcomments_features_action')) {
             $tab = 'features';
-        } elseif (isset($_POST['wpcomments_management_nonce']) && wp_verify_nonce($_POST['wpcomments_management_nonce'], 'wpcomments_management_nonce')) {
+        } elseif (isset($_POST['wpcomments_management_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_management_nonce']), 'wpcomments_management_nonce')) {
             $tab = 'management';
-        } elseif (isset($_POST['wpcomments_notifications_nonce']) && wp_verify_nonce($_POST['wpcomments_notifications_nonce'], 'wpcomments_notifications_nonce')) {
+        } elseif (isset($_POST['wpcomments_notifications_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_notifications_nonce']), 'wpcomments_notifications_nonce')) {
             $tab = 'notifications';
-        } elseif (isset($_POST['wpcomments_advanced_nonce']) && wp_verify_nonce($_POST['wpcomments_advanced_nonce'], 'wpcomments_advanced_nonce')) {
+        } elseif (isset($_POST['wpcomments_advanced_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_advanced_nonce']), 'wpcomments_advanced_nonce')) {
             $tab = 'advanced';
         } else {
             error_log('[WPComments] Security check failed in handle_form_submission.');
@@ -395,6 +383,12 @@ class WPComments_Settings
             if ($threshold < 1) $threshold = 3;
             update_option('wpcomments_report_threshold', $threshold);
         }
+        update_option('wpcomments_report_logged_in_only', !empty($_POST['wpcomments_report_logged_in_only']));
+        update_option('wpcomments_report_min_interval', min(1440, absint($_POST['wpcomments_report_min_interval'] ?? 10)));
+        update_option('wpcomments_report_retention_days', max(1, min(3650, absint($_POST['wpcomments_report_retention_days'] ?? 90))));
+        if (isset($_POST['wpcomments_report_privacy_notice'])) {
+            update_option('wpcomments_report_privacy_notice', sanitize_text_field(wp_unslash($_POST['wpcomments_report_privacy_notice'])));
+        }
     }
     
     private function save_management_settings() {
@@ -410,7 +404,10 @@ class WPComments_Settings
     }
     
     private function save_advanced_settings() {
-        // 高级设置处理
+        if (is_multisite()) {
+            return;
+        }
+        update_option('wpcomments_delete_data_on_uninstall', !empty($_POST['wpcomments_delete_data_on_uninstall']));
     }
 
     public function render_settings_page()
@@ -435,8 +432,8 @@ class WPComments_Settings
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 设置', 'wpcomments'); ?>
                 <span style="font-size: 13px; padding-left: 10px;"><?php printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
-                <a href="https://github.com/wpcomments/wpcomments" target="_blank" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
-                <a href="https://github.com/wpcomments/wpcomments/issues" target="_blank" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
+                <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
+                <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
             </h1>
 
             <div id="wpcomments-status" class="notice" style="display:none; margin-top: 10px;"></div>
@@ -981,6 +978,7 @@ class WPComments_Settings
     private function render_advanced_tab()
     {
     ?>
+        <form method="post" action="" id="wpcomments-advanced-form">
         <div class="wpcomments-stats-card">
             <h3><?php _e('插件信息', 'wpcomments'); ?></h3>
             <table class="form-table">
@@ -998,15 +996,29 @@ class WPComments_Settings
                 </tr>
             </table>
 
+            <h3><?php esc_html_e('卸载数据', 'wpcomments'); ?></h3>
+            <?php if (is_multisite()): ?>
+            <p class="description"><?php esc_html_e('多站点卸载默认保留所有站点数据。仅可由运维人员在备份后通过 WPCOMMENTS_DELETE_DATA_ON_UNINSTALL 常量明确启用删除。', 'wpcomments'); ?></p>
+            <?php else: ?>
+            <label>
+                <input type="checkbox" name="wpcomments_delete_data_on_uninstall" value="1" <?php checked((bool) get_option('wpcomments_delete_data_on_uninstall', false)); ?>>
+                <?php esc_html_e('卸载插件时删除设置、举报表和插件评论元数据', 'wpcomments'); ?>
+            </label>
+            <p class="description"><?php esc_html_e('默认不删除历史数据。启用前请先备份；停用插件不会删除数据。', 'wpcomments'); ?></p>
+            <?php endif; ?>
+
             <div class="wpcomments-action-buttons">
-                <a href="https://github.com/wpcomments/wpcomments" target="_blank" class="button button-secondary">
+                <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary">
                     <?php _e('文档', 'wpcomments'); ?>
                 </a>
-                <a href="https://github.com/wpcomments/wpcomments/issues" target="_blank" class="button button-secondary">
+                <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary">
                     <?php _e('报告问题', 'wpcomments'); ?>
                 </a>
             </div>
         </div>
+        <?php wp_nonce_field('wpcomments_advanced_nonce', 'wpcomments_advanced_nonce'); ?>
+        <p class="submit"><button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button></p>
+        </form>
 <?php
     }
 

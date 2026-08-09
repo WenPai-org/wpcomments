@@ -103,7 +103,7 @@ class WPComments_Bootstrap {
     private function init_enhanced_mode(): void {
         $this->load_enhanced_dependencies();
         
-        WPComments_Core::get_instance();
+        WPComments_Core::get_instance($this->feature_settings);
     }
 
     /**
@@ -154,17 +154,18 @@ class WPComments_Bootstrap {
     private function get_feature_settings(): array {
         $defaults = [
             'comments_disabled'             => false,
-            'role_badge_enabled'            => true,
-            'delete_pending_enabled'        => true,
+            'role_badge_enabled'            => false,
+            'delete_pending_enabled'        => false,
             'remove_website_field_enabled'  => false,
-            'frequently_replies_enabled'    => true,
-            'validation_enabled'            => true,
-            'moderation_info_enabled'       => true,
-            'email_notification_enabled'    => true,
-            'private_comments_enabled'      => true,
-            'comment_limiter_enabled'       => true,
+            'frequently_replies_enabled'    => false,
+            'validation_enabled'            => false,
+            'moderation_info_enabled'       => false,
+            'email_notification_enabled'    => false,
+            'private_comments_enabled'      => false,
+            'comment_limiter_enabled'       => false,
             'report_comments_enabled'       => false,
-            'sticky_comments_enabled'       => true,
+            'sticky_comments_enabled'       => false,
+            'gongan_beian_enabled'           => false,
         ];
 
         if (is_multisite()) {
@@ -181,6 +182,7 @@ class WPComments_Bootstrap {
                 'comment_limiter_enabled'       => WPComments_Network_Settings::get_effective_setting('wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled']),
                 'report_comments_enabled'       => WPComments_Network_Settings::get_effective_setting('wpcomments_enable_report_comments', $defaults['report_comments_enabled']),
                 'sticky_comments_enabled'       => WPComments_Network_Settings::get_effective_setting('wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled']),
+                'gongan_beian_enabled'           => WPComments_Network_Settings::get_effective_setting('wpcomments_enable_gongan_beian', $defaults['gongan_beian_enabled']),
             ];
         }
 
@@ -197,6 +199,7 @@ class WPComments_Bootstrap {
             'comment_limiter_enabled'       => get_option('wpcomments_enable_comment_limiter', $defaults['comment_limiter_enabled']),
             'report_comments_enabled'       => get_option('wpcomments_enable_report_comments', $defaults['report_comments_enabled']),
             'sticky_comments_enabled'       => get_option('wpcomments_enable_sticky_comments', $defaults['sticky_comments_enabled']),
+            'gongan_beian_enabled'           => get_option('wpcomments_enable_gongan_beian', $defaults['gongan_beian_enabled']),
         ];
     }
 

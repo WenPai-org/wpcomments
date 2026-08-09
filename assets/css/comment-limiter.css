@@ -1,0 +1,22 @@
+.wpcomments-character-counter {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.wpcomments-progress-bar {
+    height: 4px;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    background: #dcdcde;
+}
+
+.wpcomments-progress-fill {
+    width: 0;
+    height: 100%;
+    transition: width 0.15s ease;
+}
+
+#submit.wpcomments-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}

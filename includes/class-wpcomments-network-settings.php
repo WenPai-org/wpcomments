@@ -41,8 +41,8 @@ class WPComments_Network_Settings {
         $enable_remove_website_field = get_site_option('wpcomments_enable_remove_website_field', false);
         $enable_frequently_replies = get_site_option('wpcomments_enable_frequently_replies', false);
         $enable_validation = get_site_option('wpcomments_enable_validation', false);
-        $enable_moderation_info = get_site_option('wpcomments_enable_moderation_info', true);
-        $enable_email_notification = get_site_option('wpcomments_enable_email_notification', true);
+        $enable_moderation_info = get_site_option('wpcomments_enable_moderation_info', false);
+        $enable_email_notification = get_site_option('wpcomments_enable_email_notification', false);
         $enable_private_comments = get_site_option('wpcomments_enable_private_comments', false);
         $enable_comment_limiter = get_site_option('wpcomments_enable_comment_limiter', false);
         $enable_report_comments = get_site_option('wpcomments_enable_report_comments', false);
@@ -57,8 +57,8 @@ class WPComments_Network_Settings {
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 网络设置', 'wpcomments'); ?>
                 <span style="font-size: 13px; padding-left: 10px;"><?php printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
-                <a href="https://github.com/wpcomments/wpcomments" target="_blank" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
-                <a href="https://github.com/wpcomments/wpcomments/issues" target="_blank" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
+                <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
+                <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
             </h1>
 
             <div id="wpcomments-status" class="notice" style="display:none; margin-top: 10px; padding: 8px 12px;"></div>
@@ -537,7 +537,7 @@ class WPComments_Network_Settings {
     }
     
     public function save_network_settings() {
-        if (!wp_verify_nonce($_POST['_wpnonce'], 'wpcomments_network_settings_nonce')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wpcomments_network_settings_nonce')) {
             wp_die('安全验证失败');
         }
         
@@ -552,7 +552,23 @@ class WPComments_Network_Settings {
             case 'network':
                 $network_enabled = isset($_POST['wpcomments_network_enabled']) ? (bool) $_POST['wpcomments_network_enabled'] : false;
                 $network_enforce = isset($_POST['wpcomments_network_enforce']) ? (bool) $_POST['wpcomments_network_enforce'] : false;
-                $controlled_options = isset($_POST['wpcomments_network_controlled_options']) ? $_POST['wpcomments_network_controlled_options'] : array();
+                $allowed_options = array(
+                    'wpcomments_disable_comments', 'wpcomments_enable_validation',
+                    'wpcomments_enable_remove_website_field', 'wpcomments_enable_private_comments',
+                    'wpcomments_enable_comment_limiter', 'wpcomments_enable_role_badge',
+                    'wpcomments_enable_report_comments', 'wpcomments_report_logged_in_only',
+                    'wpcomments_report_min_interval', 'wpcomments_report_retention_days',
+                    'wpcomments_report_privacy_notice', 'wpcomments_enable_delete_pending',
+                    'wpcomments_enable_frequently_replies', 'wpcomments_enable_moderation_info',
+                    'wpcomments_enable_sticky_comments', 'wpcomments_enable_gongan_beian',
+                    'wpcomments_enable_email_notification',
+                );
+                $controlled_options = isset($_POST['wpcomments_network_controlled_options'])
+                    ? array_values(array_intersect(
+                        $allowed_options,
+                        array_map('sanitize_key', (array) wp_unslash($_POST['wpcomments_network_controlled_options']))
+                    ))
+                    : array();
                 
                 update_site_option('wpcomments_network_enabled', $network_enabled);
                 update_site_option('wpcomments_network_enforce', $network_enforce);
@@ -596,8 +612,8 @@ class WPComments_Network_Settings {
                 $enable_role_badge = isset($_POST['wpcomments_enable_role_badge']) ? (bool) $_POST['wpcomments_enable_role_badge'] : false;
                 $enable_report_comments = isset($_POST['wpcomments_enable_report_comments']) ? (bool) $_POST['wpcomments_enable_report_comments'] : false;
                 $report_logged_in_only = isset($_POST['wpcomments_report_logged_in_only']) ? (bool) $_POST['wpcomments_report_logged_in_only'] : false;
-                $report_min_interval = isset($_POST['wpcomments_report_min_interval']) ? absint($_POST['wpcomments_report_min_interval']) : 10;
-                $report_retention_days = isset($_POST['wpcomments_report_retention_days']) ? absint($_POST['wpcomments_report_retention_days']) : 90;
+                $report_min_interval = isset($_POST['wpcomments_report_min_interval']) ? min(1440, absint($_POST['wpcomments_report_min_interval'])) : 10;
+                $report_retention_days = isset($_POST['wpcomments_report_retention_days']) ? max(1, min(3650, absint($_POST['wpcomments_report_retention_days']))) : 90;
                 
                 update_site_option('wpcomments_enable_role_badge', $enable_role_badge);
                 update_site_option('wpcomments_enable_report_comments', $enable_report_comments);

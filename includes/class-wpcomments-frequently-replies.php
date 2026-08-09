@@ -161,11 +161,11 @@ class WPComments_Frequently_Replies {
         ?>
         <div class="wrap wpcomments-settings wpcomments-frequently-replies-page" id="wpcomments-frequently-replies">
             <h1><?php echo esc_html__('常用回复列表', 'wpcomments'); ?>
-                <a href="<?php echo admin_url('options-general.php?page=wpcomments-settings&tab=features'); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('返回设置', 'wpcomments'); ?></a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wpcomments-settings&tab=features')); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('返回设置', 'wpcomments'); ?></a>
             </h1>
             
             <div class="wpcomments-card">
-                <h2><?php _e('管理常用回复模板', 'wpcomments'); ?></h2>
+                <h2><?php esc_html_e('管理常用回复模板', 'wpcomments'); ?></h2>
                 <p class="wpcomments-section-desc"><?php echo esc_html__('在这里管理您的常用回复模板，可以在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
             
             <form id="wpcomments-frequently-replies-form" name="wpcomments-frequently-replies-form" method="post">
@@ -178,7 +178,7 @@ class WPComments_Frequently_Replies {
                                 <div class="postbox reply-item">
                                     <div class="postbox-header">
                                         <h2 class="hndle">
-                                            <span><?php echo esc_html__('回复模板', 'wpcomments'); ?> #<?php echo ($i + 1); ?></span>
+                                            <span><?php echo esc_html__('回复模板', 'wpcomments'); ?> #<?php echo esc_html((string) ($i + 1)); ?></span>
                                         </h2>
                                         <div class="handle-actions">
                                             <button type="button" class="handlediv" aria-expanded="true">
@@ -303,7 +303,7 @@ class WPComments_Frequently_Replies {
             );
         }
         
-        $replies = $_POST['replies'];
+        $replies = isset($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
         $sanitized_replies = array();
         $i = 0;
         
@@ -398,11 +398,11 @@ class WPComments_Frequently_Replies {
             );
         }
         
-        if (!wp_verify_nonce($_POST['nonce'], 'wpcomments_frequently_replies_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(wp_unslash($_POST['nonce']), 'wpcomments_frequently_replies_nonce')) {
             wp_send_json_error(array('message' => esc_html__('安全验证失败', 'wpcomments')));
         }
         
-        $replies = isset($_POST['replies']) ? $_POST['replies'] : array();
+        $replies = isset($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
         $sanitized_replies = array();
         
         foreach ($replies as $reply) {
@@ -429,14 +429,16 @@ class WPComments_Frequently_Replies {
 
         check_ajax_referer('meta-box-order');
         
-        $page = isset($_POST['page']) ? $_POST['page'] : '';
+        $page = isset($_POST['page']) ? sanitize_key(wp_unslash($_POST['page'])) : '';
         
         if ($page === 'wpcomments-frequently-replies') {
             if (isset($_POST['closed'])) {
-                update_user_meta(get_current_user_id(), 'closedpostboxes_' . $page, explode(',', $_POST['closed']));
+                $closed = array_map('sanitize_key', explode(',', sanitize_text_field(wp_unslash($_POST['closed']))));
+                update_user_meta(get_current_user_id(), 'closedpostboxes_' . $page, $closed);
             }
             if (isset($_POST['order'])) {
-                update_user_meta(get_current_user_id(), 'meta-box-order_' . $page, $_POST['order']);
+                $order = array_map('sanitize_text_field', (array) wp_unslash($_POST['order']));
+                update_user_meta(get_current_user_id(), 'meta-box-order_' . $page, $order);
             }
         }
         

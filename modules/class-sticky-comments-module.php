@@ -61,9 +61,9 @@ class Sticky_Comments_Module implements WPComments_Module_Interface {
     }
     
     public function handle_pin_comment() {
-        $comment_id = intval($_GET['comment_id']);
+        $comment_id = isset($_GET['comment_id']) ? absint($_GET['comment_id']) : 0;
         
-        if (!wp_verify_nonce($_GET['_wpnonce'], 'pin_comment_' . $comment_id)) {
+        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'pin_comment_' . $comment_id)) {
             wp_die(__('安全验证失败', 'wpcomments'));
         }
         
@@ -73,14 +73,14 @@ class Sticky_Comments_Module implements WPComments_Module_Interface {
         
         update_comment_meta($comment_id, 'wpcomments_sticky', 1);
         
-        wp_redirect(wp_get_referer());
+        wp_safe_redirect(wp_get_referer() ?: admin_url('edit-comments.php'));
         exit;
     }
     
     public function handle_unpin_comment() {
-        $comment_id = intval($_GET['comment_id']);
+        $comment_id = isset($_GET['comment_id']) ? absint($_GET['comment_id']) : 0;
         
-        if (!wp_verify_nonce($_GET['_wpnonce'], 'unpin_comment_' . $comment_id)) {
+        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'unpin_comment_' . $comment_id)) {
             wp_die(__('安全验证失败', 'wpcomments'));
         }
         
@@ -90,7 +90,7 @@ class Sticky_Comments_Module implements WPComments_Module_Interface {
         
         delete_comment_meta($comment_id, 'wpcomments_sticky');
         
-        wp_redirect(wp_get_referer());
+        wp_safe_redirect(wp_get_referer() ?: admin_url('edit-comments.php'));
         exit;
     }
     

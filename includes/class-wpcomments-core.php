@@ -15,6 +15,9 @@ if (!defined('ABSPATH')) {
 class WPComments_Core {
     
     private static $instance = null;
+
+    /** @var array<string,bool> */
+    private $feature_settings = array();
     
     private $role_badge_registered = false;
     private $delete_pending_registered = false;
@@ -25,7 +28,8 @@ class WPComments_Core {
     private $reporting_registered = false;
     private $sticky_registered = false;
     
-    private function __construct() {
+    private function __construct(array $feature_settings) {
+        $this->feature_settings = $feature_settings;
         $this->init_hooks();
     }
     
@@ -38,19 +42,17 @@ class WPComments_Core {
     }
     
     private function load_features() {
-        $settings = get_option('wpcomments_settings', array());
-        
-        $default_settings = array(
-            'delete_pending' => true,
-            'remove_website_field' => true,
-            'validation' => true,
-            'private_comments' => true,
-            'character_limiter' => true,
-            'comment_reporting' => true,
-            'sticky_comments' => true
+        $settings = array(
+            'delete_pending'      => !empty($this->feature_settings['delete_pending_enabled']),
+            'remove_website_field'=> !empty($this->feature_settings['remove_website_field_enabled']),
+            'validation'          => !empty($this->feature_settings['validation_enabled']),
+            'private_comments'    => !empty($this->feature_settings['private_comments_enabled']),
+            'character_limiter'   => !empty($this->feature_settings['comment_limiter_enabled']),
+            'comment_reporting'   => !empty($this->feature_settings['report_comments_enabled']),
+            'sticky_comments'     => !empty($this->feature_settings['sticky_comments_enabled']),
+            'role_badge'          => !empty($this->feature_settings['role_badge_enabled']),
+            'gongan_beian'        => !empty($this->feature_settings['gongan_beian_enabled']),
         );
-        
-        $settings = array_merge($default_settings, $settings);
         
         $module_manager = \WPComments\WPComments_Module_Manager::get_instance();
         
@@ -61,6 +63,7 @@ class WPComments_Core {
         require_once WPCOMMENTS_PATH . 'modules/class-character-limiter-module.php';
         require_once WPCOMMENTS_PATH . 'modules/class-comment-reporting-module.php';
         require_once WPCOMMENTS_PATH . 'modules/class-sticky-comments-module.php';
+        require_once WPCOMMENTS_PATH . 'modules/class-role-badge-module.php';
         require_once WPCOMMENTS_PATH . 'modules/class-gongan-beian-module.php';
         
         $module_manager->register_module(new \WPComments\Delete_Pending_Module());
@@ -70,24 +73,29 @@ class WPComments_Core {
         $module_manager->register_module(new \WPComments\Character_Limiter_Module());
         $module_manager->register_module(new \WPComments\Comment_Reporting_Module());
         $module_manager->register_module(new \WPComments\Sticky_Comments_Module());
+        $module_manager->register_module(new \WPComments\Role_Badge_Module());
         $module_manager->register_module(new \WPComments\Gongan_Beian_Module());
         
         $module_manager->boot($settings);
-        
-        $this->register_role_badge_module();
         
         $this->init_legacy_features();
     }
     
     private function init_legacy_features(): void {
-        new \WPComments\WPComments_Email_Notification();
-        new \WPComments\WPComments_Frequently_Replies();
-        \WPComments\WPComments_Moderation_Info::get_instance();
+        if (!empty($this->feature_settings['email_notification_enabled'])) {
+            new \WPComments\WPComments_Email_Notification();
+        }
+        if (!empty($this->feature_settings['frequently_replies_enabled'])) {
+            new \WPComments\WPComments_Frequently_Replies();
+        }
+        if (!empty($this->feature_settings['moderation_info_enabled'])) {
+            \WPComments\WPComments_Moderation_Info::get_instance();
+        }
     }
     
-    public static function get_instance() {
+    public static function get_instance(array $feature_settings = array()) {
         if (null === self::$instance) {
-            self::$instance = new self();
+            self::$instance = new self($feature_settings);
         }
         return self::$instance;
     }
@@ -97,15 +105,15 @@ class WPComments_Core {
     }
     
     public function enqueue_frontend_assets() {
-        if (is_singular() && comments_open()) {
-            wp_enqueue_style('wpcomments-frontend', WPCOMMENTS_URL . 'assets/css/frontend.css', array(), WPCOMMENTS_VERSION);
-            wp_enqueue_script('wpcomments-frontend', WPCOMMENTS_URL . 'assets/js/frontend.js', array('jquery'), WPCOMMENTS_VERSION, true);
-        }
+        // Feature modules enqueue only the assets they actually ship.
     }
     
     public function enqueue_admin_assets() {
-        wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), WPCOMMENTS_VERSION);
-        wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if ($screen && strpos((string) $screen->id, 'wpcomments') !== false) {
+            wp_enqueue_style('wpcomments-admin', WPCOMMENTS_URL . 'assets/css/admin.css', array(), WPCOMMENTS_VERSION);
+            wp_enqueue_script('wpcomments-admin', WPCOMMENTS_URL . 'assets/js/admin.js', array('jquery'), WPCOMMENTS_VERSION, true);
+        }
     }
     
     public function register_role_badge_module(): void {
@@ -148,4 +156,3 @@ class WPComments_Core {
         $this->sticky_registered = true;
     }
 }
-
