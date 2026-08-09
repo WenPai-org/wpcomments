@@ -112,7 +112,11 @@ function load_textdomain(): void
  */
 function register_general_settings_field(): void
 {
-    \register_setting("general", "wpcomments_disable_comments", "boolval");
+    \register_setting("general", "wpcomments_disable_comments", [
+        "type" => "boolean",
+        "sanitize_callback" => "boolval",
+        "default" => false,
+    ]);
 
     \add_settings_field(
         "wpcomments-disable-comments",
@@ -161,7 +165,7 @@ function render_general_settings_field(): void
             <input <?php checked(
                 true,
                 $value,
-            ); ?> name="wpcomments_disable_comments" type="checkbox" id="wpcomments_disable_comments" value="1" <?php echo $disabled_attr; ?>>
+            ); ?> name="wpcomments_disable_comments" type="checkbox" id="wpcomments_disable_comments" value="1" <?php echo esc_attr($disabled_attr); ?>>
             <?php echo esc_html__("完全禁用此站点的评论功能", "wpcomments"); ?>
         </label>
         <p class="description"><?php echo esc_html($description); ?></p>
@@ -206,12 +210,13 @@ function activate_wpcomments($network_wide): void
 /**
  * Create reports table (hashed IP)
  */
-function wpcomments_create_reports_table(): void
+function wpcomments_create_reports_table(): bool
 {
     global $wpdb;
     $table_name = $wpdb->prefix . "wpcomments_reports";
     $charset_collate = $wpdb->get_charset_collate();
-    $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+    // dbDelta() requires the canonical "CREATE TABLE table" form to alter legacy schemas.
+    $sql = "CREATE TABLE {$table_name} (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         comment_id bigint(20) unsigned NOT NULL,
         user_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -228,10 +233,45 @@ function wpcomments_create_reports_table(): void
     ) {$charset_collate};";
     require_once ABSPATH . "wp-admin/includes/upgrade.php";
     dbDelta($sql);
-    $wpdb->query(
+
+    $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table_name}", 0);
+    $indexes = $wpdb->get_col("SHOW INDEX FROM {$table_name}", 2);
+    $required_columns = [
+        "id",
+        "comment_id",
+        "user_id",
+        "user_ip",
+        "user_ip_hash",
+        "reason",
+        "report_time",
+        "report_date",
+    ];
+    $required_indexes = ["PRIMARY", "comment_id", "user_id", "user_ip_hash", "report_date"];
+    $schema_valid = !array_diff($required_columns, (array) $columns)
+        && !array_diff($required_indexes, (array) $indexes);
+    $schema_valid = (bool) apply_filters(
+        "wpcomments_database_schema_valid",
+        $schema_valid,
+        $table_name,
+        $columns,
+        $indexes,
+    );
+
+    if (!$schema_valid) {
+        do_action("wpcomments_database_upgrade_failed", $table_name, $wpdb->last_error);
+        return false;
+    }
+
+    $migration_result = $wpdb->query(
         "UPDATE {$table_name} SET report_date = report_time WHERE report_date = '0000-00-00 00:00:00' AND report_time <> '0000-00-00 00:00:00'"
     );
+    if (false === $migration_result) {
+        do_action("wpcomments_database_upgrade_failed", $table_name, $wpdb->last_error);
+        return false;
+    }
+
     update_option("wpcomments_db_version", WPCOMMENTS_DB_VERSION, false);
+    return true;
 }
 
 /**

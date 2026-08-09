@@ -63,12 +63,12 @@ class Sticky_Comments_Module implements WPComments_Module_Interface {
     public function handle_pin_comment() {
         $comment_id = isset($_GET['comment_id']) ? absint($_GET['comment_id']) : 0;
         
-        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'pin_comment_' . $comment_id)) {
-            wp_die(__('安全验证失败', 'wpcomments'));
+        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'pin_comment_' . $comment_id)) {
+            wp_die(esc_html__('安全验证失败', 'wpcomments'));
         }
         
         if (!current_user_can('moderate_comments')) {
-            wp_die(__('您没有权限执行此操作', 'wpcomments'));
+            wp_die(esc_html__('您没有权限执行此操作', 'wpcomments'));
         }
         
         update_comment_meta($comment_id, 'wpcomments_sticky', 1);
@@ -80,12 +80,12 @@ class Sticky_Comments_Module implements WPComments_Module_Interface {
     public function handle_unpin_comment() {
         $comment_id = isset($_GET['comment_id']) ? absint($_GET['comment_id']) : 0;
         
-        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'unpin_comment_' . $comment_id)) {
-            wp_die(__('安全验证失败', 'wpcomments'));
+        if (!$comment_id || !isset($_GET['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'unpin_comment_' . $comment_id)) {
+            wp_die(esc_html__('安全验证失败', 'wpcomments'));
         }
         
         if (!current_user_can('moderate_comments')) {
-            wp_die(__('您没有权限执行此操作', 'wpcomments'));
+            wp_die(esc_html__('您没有权限执行此操作', 'wpcomments'));
         }
         
         delete_comment_meta($comment_id, 'wpcomments_sticky');

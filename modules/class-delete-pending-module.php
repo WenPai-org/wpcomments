@@ -47,56 +47,56 @@ class Delete_Pending_Module implements WPComments_Module_Interface {
         $pending_count = wp_count_comments()->moderated;
         ?>
         <div class="wrap wpcomments-settings">
-            <h1><?php _e('删除待审核评论', 'wpcomments'); ?></h1>
+            <h1><?php esc_html_e('删除待审核评论', 'wpcomments'); ?></h1>
             
             <div class="wpcomments-card">
-                <h2><?php _e('批量删除待审核评论', 'wpcomments'); ?></h2>
-                <p class="wpcomments-section-desc"><?php printf(__('当前有 %d 条待审核评论。', 'wpcomments'), $pending_count); ?></p>
+                <h2><?php esc_html_e('批量删除待审核评论', 'wpcomments'); ?></h2>
+                <p class="wpcomments-section-desc"><?php /* translators: %d: pending comment count. */ printf(esc_html__('当前有 %d 条待审核评论。', 'wpcomments'), absint($pending_count)); ?></p>
                 
                 <?php if ($pending_count > 0): ?>
                 <div class="wpcomments-action-buttons">
                     <button type="button" id="delete-all-pending" class="button button-primary">
-                        <?php _e('删除所有待审核评论', 'wpcomments'); ?>
+                        <?php esc_html_e('删除所有待审核评论', 'wpcomments'); ?>
                     </button>
                 </div>
                 
                 <script>
                 jQuery(document).ready(function($) {
                     $('#delete-all-pending').on('click', function() {
-                        if (!confirm('<?php _e('确定要删除所有待审核评论吗？此操作不可撤销。', 'wpcomments'); ?>')) {
+                        if (!confirm('<?php echo esc_js(__('确定要删除所有待审核评论吗？此操作不可撤销。', 'wpcomments')); ?>')) {
                             return;
                         }
                         
                         var $button = $(this);
-                        $button.prop('disabled', true).text('<?php _e('删除中...', 'wpcomments'); ?>');
+                        $button.prop('disabled', true).text('<?php echo esc_js(__('删除中...', 'wpcomments')); ?>');
                         
                         $.ajax({
                             url: ajaxurl,
                             type: 'POST',
                             data: {
                                 action: 'wpcomments_delete_pending',
-                                nonce: '<?php echo wp_create_nonce('wpcomments_delete_pending'); ?>'
+                                nonce: '<?php echo esc_js(wp_create_nonce('wpcomments_delete_pending')); ?>'
                             },
                             success: function(response) {
                                 if (response.success) {
-                                    alert('<?php _e('删除成功！', 'wpcomments'); ?>');
+                                    alert('<?php echo esc_js(__('删除成功！', 'wpcomments')); ?>');
                                     location.reload();
                                 } else {
-                                    alert('<?php _e('删除失败：', 'wpcomments'); ?>' + response.data);
+                                    alert('<?php echo esc_js(__('删除失败：', 'wpcomments')); ?>' + response.data);
                                 }
                             },
                             error: function() {
-                                alert('<?php _e('请求失败，请重试。', 'wpcomments'); ?>');
+                                alert('<?php echo esc_js(__('请求失败，请重试。', 'wpcomments')); ?>');
                             },
                             complete: function() {
-                                $button.prop('disabled', false).text('<?php _e('删除所有待审核评论', 'wpcomments'); ?>');
+                                $button.prop('disabled', false).text('<?php echo esc_js(__('删除所有待审核评论', 'wpcomments')); ?>');
                             }
                         });
                     });
                 });
                 </script>
                 <?php else: ?>
-                <p><?php _e('没有待审核的评论。', 'wpcomments'); ?></p>
+                <p><?php esc_html_e('没有待审核的评论。', 'wpcomments'); ?></p>
                 <?php endif; ?>
             </div>
         </div>
@@ -127,6 +127,7 @@ class Delete_Pending_Module implements WPComments_Module_Interface {
             }
         }
         
+        /* translators: %d: deleted pending comment count. */
         wp_send_json_success(sprintf(__('成功删除 %d 条待审核评论', 'wpcomments'), $total_deleted));
     }
 }

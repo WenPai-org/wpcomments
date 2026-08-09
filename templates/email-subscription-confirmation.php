@@ -9,6 +9,13 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/** @var string $subject */
+/** @var string $post_title */
+/** @var string $post_url */
+/** @var string $subscriber_email */
+/** @var string $subscription_date */
+/** @var string $confirm_url */
 ?>
 <!DOCTYPE html>
 <html>

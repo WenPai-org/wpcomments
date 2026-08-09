@@ -8,7 +8,6 @@ if (!defined('ABSPATH')) {
 
 class WPComments_Network_Settings {
     
-    private $option_group = 'wpcomments_network_settings';
     private $page_slug = 'wpcomments-network-settings';
     
     public function __construct() {
@@ -30,7 +29,7 @@ class WPComments_Network_Settings {
     
     public function render_network_settings_page() {
         if (!current_user_can('manage_network_options')) {
-            wp_die(__('您没有足够权限访问此页面。', 'wpcomments'));
+            wp_die(esc_html__('您没有足够权限访问此页面。', 'wpcomments'));
         }
         // 成功提示统一交由前端 JS 的 #wpcomments-status 控制，避免重复提示
         
@@ -52,11 +51,11 @@ class WPComments_Network_Settings {
         $network_enabled = get_site_option('wpcomments_network_enabled', 1);
         $network_enforce = get_site_option('wpcomments_network_enforce', 0);
         
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'network';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'network';
         ?>
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 网络设置', 'wpcomments'); ?>
-                <span style="font-size: 13px; padding-left: 10px;"><?php printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
+                <span style="font-size: 13px; padding-left: 10px;"><?php /* translators: %s: plugin version. */ printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
                 <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
                 <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
             </h1>
@@ -67,30 +66,30 @@ class WPComments_Network_Settings {
                 <div class="wpcomments-tabs-wrapper">
                     <div class="wpcomments-sync-tabs">
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'network' ? 'active' : ''; ?>" data-tab="network">
-                            <?php _e('网络管理', 'wpcomments'); ?>
+                            <?php esc_html_e('网络管理', 'wpcomments'); ?>
                         </button>
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'basic' ? 'active' : ''; ?>" data-tab="basic">
-                            <?php _e('基础设置', 'wpcomments'); ?>
+                            <?php esc_html_e('基础设置', 'wpcomments'); ?>
                         </button>
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'features' ? 'active' : ''; ?>" data-tab="features">
-                            <?php _e('功能增强', 'wpcomments'); ?>
+                            <?php esc_html_e('功能增强', 'wpcomments'); ?>
                         </button>
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'management' ? 'active' : ''; ?>" data-tab="management">
-                            <?php _e('管理工具', 'wpcomments'); ?>
+                            <?php esc_html_e('管理工具', 'wpcomments'); ?>
                         </button>
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'notifications' ? 'active' : ''; ?>" data-tab="notifications">
-                            <?php _e('通知设置', 'wpcomments'); ?>
+                            <?php esc_html_e('通知设置', 'wpcomments'); ?>
                         </button>
                         <button type="button" class="wpcomments-tab <?php echo $active_tab === 'tools' ? 'active' : ''; ?>" data-tab="tools">
-                            <?php _e('实用工具', 'wpcomments'); ?>
+                            <?php esc_html_e('实用工具', 'wpcomments'); ?>
                         </button>
                     </div>
                 </div>
 
                 <!-- Network Management Section -->
                 <div class="wpcomments-section" id="wpcomments-section-network" style="<?php echo $active_tab !== 'network' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('网络管理设置', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('配置多站点网络的WPComments管理方式。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('网络管理设置', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('配置多站点网络的WPComments管理方式。', 'wpcomments'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(network_admin_url('edit.php?action=wpcomments_network_settings')); ?>" id="wpcomments-network-form">
                         <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -98,29 +97,29 @@ class WPComments_Network_Settings {
 
                         <table class="form-table">
                             <tr>
-                                <th><?php _e('启用网络级管理', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('启用网络级管理', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_network_enabled" value="1" <?php checked($network_enabled); ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('在所有站点使用网络设置', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('在所有站点使用网络设置', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，所有子站点将使用选定的网络设置，子站点的对应设置将被覆盖', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，所有子站点将使用选定的网络设置，子站点的对应设置将被覆盖', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('强制使用网络设置', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('强制使用网络设置', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_network_enforce" value="1" <?php checked($network_enforce); ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('完全禁用子站点设置页面', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('完全禁用子站点设置页面', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，子站点将无法访问WPComments设置页面，完全由网络管理', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，子站点将无法访问WPComments设置页面，完全由网络管理', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('网络控制选项', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('网络控制选项', 'wpcomments'); ?></th>
                                 <td>
                                     <?php
                                     // Get current controlled options
@@ -212,26 +211,26 @@ class WPComments_Network_Settings {
                                     }
                                     echo '</div>';
                                     ?>
-                                    <p class="description"><?php _e('选中的选项将在所有站点使用网络设置，未选中的选项可由站点管理员自定义。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('选中的选项将在所有站点使用网络设置，未选中的选项可由站点管理员自定义。', 'wpcomments'); ?></p>
                                     <div class="wpcomments-action-buttons" style="margin-top:10px;">
-                                        <button type="button" id="select-all-options" class="button button-secondary"><?php _e('全选', 'wpcomments'); ?></button>
-                                        <button type="button" id="deselect-all-options" class="button button-secondary"><?php _e('取消全选', 'wpcomments'); ?></button>
-                                        <button type="button" id="reset-default-options" class="button button-secondary"><?php _e('恢复默认', 'wpcomments'); ?></button>
+                                        <button type="button" id="select-all-options" class="button button-secondary"><?php esc_html_e('全选', 'wpcomments'); ?></button>
+                                        <button type="button" id="deselect-all-options" class="button button-secondary"><?php esc_html_e('取消全选', 'wpcomments'); ?></button>
+                                        <button type="button" id="reset-default-options" class="button button-secondary"><?php esc_html_e('恢复默认', 'wpcomments'); ?></button>
                                     </div>
                                 </td>
                             </tr>
                         </table>
 
                         <div class="wpcomments-submit-wrapper">
-                            <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
+                            <button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button>
                         </div>
                     </form>
                 </div>
 
                 <!-- Basic Settings Section -->
                 <div class="wpcomments-section" id="wpcomments-section-basic" style="<?php echo $active_tab !== 'basic' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('基础设置', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('配置评论系统的核心功能，应用于所有网络站点。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('基础设置', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('配置评论系统的核心功能，应用于所有网络站点。', 'wpcomments'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(network_admin_url('edit.php?action=wpcomments_network_settings')); ?>" id="wpcomments-basic-form">
                         <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -311,7 +310,7 @@ class WPComments_Network_Settings {
                     </table>
                     
                     <div class="wpcomments-submit-wrapper">
-                        <button type="submit" class="button button-primary"><?php _e('保存基础设置', 'wpcomments'); ?></button>
+                        <button type="submit" class="button button-primary"><?php esc_html_e('保存基础设置', 'wpcomments'); ?></button>
                     </div>
                     </form>
                 </div>
@@ -320,8 +319,8 @@ class WPComments_Network_Settings {
 
                 <!-- Features Section -->
                 <div class="wpcomments-section" id="wpcomments-section-features" style="<?php echo $active_tab !== 'features' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('功能增强', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('配置评论显示和交互增强功能，应用于所有网络站点。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('功能增强', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('配置评论显示和交互增强功能，应用于所有网络站点。', 'wpcomments'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(network_admin_url('edit.php?action=wpcomments_network_settings')); ?>" id="wpcomments-features-form">
                         <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -329,66 +328,66 @@ class WPComments_Network_Settings {
 
                         <table class="form-table">
                             <tr>
-                                <th><?php _e('用户角色徽章', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('用户角色徽章', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_role_badge" value="1" <?php checked($enable_role_badge); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('在评论中显示用户角色徽章', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('在评论中显示用户角色徽章', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，将在评论者姓名旁显示其用户角色徽章，如管理员、编辑者等，便于识别用户身份。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，将在评论者姓名旁显示其用户角色徽章，如管理员、编辑者等，便于识别用户身份。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('评论举报系统', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('评论举报系统', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_report_comments" value="1" <?php checked($enable_report_comments); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用评论举报功能', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用评论举报功能', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，用户可以举报不当评论，当举报次数达到阈值时，评论将自动转为待审核状态。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，用户可以举报不当评论，当举报次数达到阈值时，评论将自动转为待审核状态。', 'wpcomments'); ?></p>
 
                                     <fieldset style="margin-top:10px;">
                                         <label>
                                             <input type="hidden" name="wpcomments_report_logged_in_only" value="0">
                                             <input type="checkbox" name="wpcomments_report_logged_in_only" value="1" <?php checked(get_site_option('wpcomments_report_logged_in_only', 0)); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
-                                            <?php _e('仅登录用户可举报', 'wpcomments'); ?>
+                                            <?php esc_html_e('仅登录用户可举报', 'wpcomments'); ?>
                                         </label>
-                                        <p class="description"><?php _e('启用后，未登录用户将无法发起举报。', 'wpcomments'); ?></p>
+                                        <p class="description"><?php esc_html_e('启用后，未登录用户将无法发起举报。', 'wpcomments'); ?></p>
 
                                         <label>
-                                            <?php _e('最小举报间隔（分钟）', 'wpcomments'); ?>
+                                            <?php esc_html_e('最小举报间隔（分钟）', 'wpcomments'); ?>
                                             <input type="number" name="wpcomments_report_min_interval" value="<?php echo esc_attr(get_site_option('wpcomments_report_min_interval', 10)); ?>" min="1" max="1440" class="small-text" <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         </label>
-                                        <p class="description"><?php _e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
+                                        <p class="description"><?php esc_html_e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
 
                                         <label>
-                                            <?php _e('举报数据保留天数', 'wpcomments'); ?>
+                                            <?php esc_html_e('举报数据保留天数', 'wpcomments'); ?>
                                             <input type="number" name="wpcomments_report_retention_days" value="<?php echo esc_attr(get_site_option('wpcomments_report_retention_days', 90)); ?>" min="1" max="3650" class="small-text" <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         </label>
-                                        <p class="description"><?php _e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
+                                        <p class="description"><?php esc_html_e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
 
                                         <label>
-                                            <?php _e('举报隐私提示（支持 {days}）', 'wpcomments'); ?>
+                                            <?php esc_html_e('举报隐私提示（支持 {days}）', 'wpcomments'); ?>
                                             <input type="text" name="wpcomments_report_privacy_notice" value="<?php echo esc_attr(get_site_option('wpcomments_report_privacy_notice', __('举报将记录必要信息用于防刷与审核，数据保留 {days} 天。', 'wpcomments'))); ?>" class="regular-text" <?php echo $disable_comments ? 'disabled' : ''; ?> />
                                         </label>
-                                        <p class="description"><?php _e('该提示用于举报按钮的提示文本与无障碍标签，{days} 将替换为保留天数。', 'wpcomments'); ?></p>
+                                        <p class="description"><?php esc_html_e('该提示用于举报按钮的提示文本与无障碍标签，{days} 将替换为保留天数。', 'wpcomments'); ?></p>
                                     </fieldset>
                                 </td>
                             </tr>
                         </table>
 
                         <div class="wpcomments-submit-wrapper">
-                            <button type="submit" class="button button-primary"><?php _e('保存功能设置', 'wpcomments'); ?></button>
+                            <button type="submit" class="button button-primary"><?php esc_html_e('保存功能设置', 'wpcomments'); ?></button>
                         </div>
                     </form>
                 </div>
 
                 <!-- Management Tools Section -->
                 <div class="wpcomments-section" id="wpcomments-section-management" style="<?php echo $active_tab !== 'management' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('管理工具', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('配置评论管理和审核工具，应用于所有网络站点。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('管理工具', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('配置评论管理和审核工具，应用于所有网络站点。', 'wpcomments'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(network_admin_url('edit.php?action=wpcomments_network_settings')); ?>" id="wpcomments-management-form">
                         <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -401,73 +400,73 @@ class WPComments_Network_Settings {
 
                         <table class="form-table">
                             <tr>
-                                <th><?php _e('删除待审核评论', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('删除待审核评论', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_delete_pending" value="1" <?php checked($enable_delete_pending); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用批量删除待审核评论功能', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用批量删除待审核评论功能', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，管理员可以批量删除所有待审核状态的评论，提高评论管理效率。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，管理员可以批量删除所有待审核状态的评论，提高评论管理效率。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
 
                             <tr>
-                                <th><?php _e('常用回复功能', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('常用回复功能', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_frequently_replies" value="1" <?php checked($enable_frequently_replies); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用常用回复模板功能', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用常用回复模板功能', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，您可以创建和管理常用回复模板，在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，您可以创建和管理常用回复模板，在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('评论审核信息', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('评论审核信息', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_moderation_info" value="1" <?php checked($enable_moderation_info); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用审核信息显示功能', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用审核信息显示功能', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，将显示评论审核状态信息，帮助管理员了解评论的审核进度。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，将显示评论审核状态信息，帮助管理员了解评论的审核进度。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('置顶评论功能', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('置顶评论功能', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_sticky_comments" value="1" <?php checked($enable_sticky_comments); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用评论置顶功能', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用评论置顶功能', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，管理员可以将重要评论置顶显示，置顶评论将始终显示在评论列表的顶部。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，管理员可以将重要评论置顶显示，置顶评论将始终显示在评论列表的顶部。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php _e('公安备案合规辅助', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('公安备案合规辅助', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_gongan_beian" value="1" <?php checked($enable_gongan_beian); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('在后台评论列表显示来源IP、端口与精确时间，并在插入评论时记录端口', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('在后台评论列表显示来源IP、端口与精确时间，并在插入评论时记录端口', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，将在后台评论列表中显示评论的来源IP、端口与精确时间，并在插入评论时记录端口信息，以满足公安备案相关合规要求（具体以当地监管要求为准）。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，将在后台评论列表中显示评论的来源IP、端口与精确时间，并在插入评论时记录端口信息，以满足公安备案相关合规要求（具体以当地监管要求为准）。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                         </table>
 
                         <div class="wpcomments-submit-wrapper">
-                            <button type="submit" class="button button-primary"><?php _e('保存管理设置', 'wpcomments'); ?></button>
+                            <button type="submit" class="button button-primary"><?php esc_html_e('保存管理设置', 'wpcomments'); ?></button>
                         </div>
                     </form>
                 </div>
 
                 <!-- Notifications Section -->
                 <div class="wpcomments-section" id="wpcomments-section-notifications" style="<?php echo $active_tab !== 'notifications' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('通知设置', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('配置邮件通知和订阅功能，应用于所有网络站点。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('通知设置', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('配置邮件通知和订阅功能，应用于所有网络站点。', 'wpcomments'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(network_admin_url('edit.php?action=wpcomments_network_settings')); ?>" id="wpcomments-notifications-form">
                         <?php wp_nonce_field('wpcomments_network_settings_nonce'); ?>
@@ -476,56 +475,61 @@ class WPComments_Network_Settings {
 
                         <table class="form-table">
                             <tr>
-                                <th><?php _e('邮件通知功能', 'wpcomments'); ?></th>
+                                <th><?php esc_html_e('邮件通知功能', 'wpcomments'); ?></th>
                                 <td>
                                     <label class="wpcomments-switch">
                                         <input type="checkbox" name="wpcomments_enable_email_notification" value="1" <?php checked($enable_email_notification); ?> <?php echo $disable_comments ? 'disabled' : ''; ?>>
                                         <span class="wpcomments-slider"></span>
-                                        <span class="wpcomments-switch-label"><?php _e('启用评论邮件通知系统', 'wpcomments'); ?></span>
+                                        <span class="wpcomments-switch-label"><?php esc_html_e('启用评论邮件通知系统', 'wpcomments'); ?></span>
                                     </label>
-                                    <p class="description"><?php _e('启用后，将向管理员和用户发送评论相关的邮件通知。', 'wpcomments'); ?></p>
+                                    <p class="description"><?php esc_html_e('启用后，将向管理员和用户发送评论相关的邮件通知。', 'wpcomments'); ?></p>
                                 </td>
                             </tr>
                         </table>
 
                         <div class="wpcomments-submit-wrapper">
-                            <button type="submit" class="button button-primary"><?php _e('保存通知设置', 'wpcomments'); ?></button>
+                            <button type="submit" class="button button-primary"><?php esc_html_e('保存通知设置', 'wpcomments'); ?></button>
                         </div>
                     </form>
                 </div>
 
                 <!-- Tools Section -->
                 <div class="wpcomments-section" id="wpcomments-section-tools" style="<?php echo $active_tab !== 'tools' ? 'display: none;' : ''; ?>">
-                    <h2><?php _e('实用工具', 'wpcomments'); ?></h2>
-                    <p class="wpcomments-section-desc"><?php _e('网络级别的批量操作和管理工具。', 'wpcomments'); ?></p>
+                    <h2><?php esc_html_e('实用工具', 'wpcomments'); ?></h2>
+                    <p class="wpcomments-section-desc"><?php esc_html_e('网络级别的批量操作和管理工具。', 'wpcomments'); ?></p>
 
                     <div class="wpcomments-stats-card">
-                        <h3><?php _e('网络统计', 'wpcomments'); ?></h3>
-                        <p><?php printf(__('当前网络共有 %d 个站点', 'wpcomments'), get_blog_count()); ?></p>
+                        <h3><?php esc_html_e('网络统计', 'wpcomments'); ?></h3>
+                        <p>
+                            <?php
+                            /* translators: %d: number of sites in the network. */
+                            printf(esc_html__('当前网络共有 %d 个站点', 'wpcomments'), absint(get_blog_count()));
+                            ?>
+                        </p>
                         
                         <?php
-                        // 获取网络评论统计
-                        global $wpdb;
-                        $total_comments = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments}");
-                        $pending_comments = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = '0'");
+                        // This card reports the current site because WordPress stores comments per site.
+                        $comment_counts = wp_count_comments();
+                        $total_comments = $comment_counts->total_comments;
+                        $pending_comments = $comment_counts->moderated;
                         ?>
                         
-                        <p><?php printf(__('网络总评论数: %d 条', 'wpcomments'), $total_comments); ?></p>
-                        <p><?php printf(__('待审核评论数: %d 条', 'wpcomments'), $pending_comments); ?></p>
+                        <p><?php /* translators: %d: current site comment count. */ printf(esc_html__('当前站点评论数: %d 条', 'wpcomments'), absint($total_comments)); ?></p>
+                        <p><?php /* translators: %d: current site pending comment count. */ printf(esc_html__('当前站点待审核评论数: %d 条', 'wpcomments'), absint($pending_comments)); ?></p>
                     </div>
 
                     <div class="wpcomments-stats-card">
-                        <h3><?php _e('批量操作', 'wpcomments'); ?></h3>
-                        <p><?php _e('对整个网络执行批量操作，请谨慎使用。', 'wpcomments'); ?></p>
+                        <h3><?php esc_html_e('批量操作', 'wpcomments'); ?></h3>
+                        <p><?php esc_html_e('对整个网络执行批量操作，请谨慎使用。', 'wpcomments'); ?></p>
                         <div class="wpcomments-action-buttons">
                             <button type="button" class="button button-secondary" id="sync-all-sites">
-                                <?php _e('同步设置到所有站点', 'wpcomments'); ?>
+                                <?php esc_html_e('同步设置到所有站点', 'wpcomments'); ?>
                             </button>
                             <button type="button" class="button button-secondary" id="export-network-settings">
-                                <?php _e('导出网络设置', 'wpcomments'); ?>
+                                <?php esc_html_e('导出网络设置', 'wpcomments'); ?>
                             </button>
                             <button type="button" class="button button-secondary" id="import-network-settings">
-                                <?php _e('导入网络设置', 'wpcomments'); ?>
+                                <?php esc_html_e('导入网络设置', 'wpcomments'); ?>
                             </button>
                         </div>
                     </div>
@@ -537,7 +541,7 @@ class WPComments_Network_Settings {
     }
     
     public function save_network_settings() {
-        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wpcomments_network_settings_nonce')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wpcomments_network_settings_nonce')) {
             wp_die('安全验证失败');
         }
         
@@ -545,7 +549,8 @@ class WPComments_Network_Settings {
             wp_die('权限不足');
         }
         
-        $tab = isset($_POST['tab']) ? sanitize_text_field($_POST['tab']) : 'network';
+        $request = wp_unslash($_POST);
+        $tab = isset($request['tab']) ? sanitize_key($request['tab']) : 'network';
         
         // Save settings based on the current tab
         switch ($tab) {
@@ -566,7 +571,7 @@ class WPComments_Network_Settings {
                 $controlled_options = isset($_POST['wpcomments_network_controlled_options'])
                     ? array_values(array_intersect(
                         $allowed_options,
-                        array_map('sanitize_key', (array) wp_unslash($_POST['wpcomments_network_controlled_options']))
+                        array_map('sanitize_key', (array) $request['wpcomments_network_controlled_options'])
                     ))
                     : array();
                 
@@ -620,8 +625,8 @@ class WPComments_Network_Settings {
                 update_site_option('wpcomments_report_logged_in_only', $report_logged_in_only);
                 update_site_option('wpcomments_report_min_interval', $report_min_interval);
                 update_site_option('wpcomments_report_retention_days', $report_retention_days);
-                if (isset($_POST['wpcomments_report_privacy_notice'])) {
-                    update_site_option('wpcomments_report_privacy_notice', sanitize_text_field($_POST['wpcomments_report_privacy_notice']));
+                if (isset($request['wpcomments_report_privacy_notice'])) {
+                    update_site_option('wpcomments_report_privacy_notice', sanitize_text_field($request['wpcomments_report_privacy_notice']));
                 }
                 break;
                 
@@ -646,7 +651,7 @@ class WPComments_Network_Settings {
                 break;
         }
         
-        wp_redirect(add_query_arg(array('page' => $this->page_slug, 'settings-updated' => 'true', 'tab' => $tab), network_admin_url('settings.php')));
+        wp_safe_redirect(add_query_arg(array('page' => $this->page_slug, 'settings-updated' => 'true', 'tab' => $tab), network_admin_url('settings.php')));
         exit;
     }
     

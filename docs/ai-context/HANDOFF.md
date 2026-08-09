@@ -14,3 +14,13 @@
 - 完整证据与拆分路线：`docs/audits/wpcomments-audit-2026-08-09.md`。
 - 最终审计包：`/tmp/wpcomments-2.0.0-audit-final.zip`，SHA-256 `f9e9fa31d46befd5ebc205f4a79ea70660b8844a375b73a290b2d491257dd858`；仅测试产物，未发布。
 - Git 交付：提交 `4c12d16` 已推送到 `codex/wpcomments-audit-hardening`；PR `https://github.com/WenPai-org/wpcomments/pull/1` 已创建，未合并。
+
+## 2026-08-09 — [CX] 第三轮扫描、迁移与兼容复核
+
+- 同一隔离分支继续修复；PR #1 保持 Open，未合并、发布或部署。
+- 旧举报表迁移在 disposable single-site 与 2-site multisite 真实 MariaDB fixture 通过；覆盖旧列升级、历史行保留、重复幂等、强制失败不推进版本和解除失败后重试。
+- 修复 `dbDelta()` 不能识别 `CREATE TABLE IF NOT EXISTS` 的确定性迁移错误，并只在 schema/索引/回填验证成功后推进 `wpcomments_db_version`。
+- WordPress 5.9.3 × PHP 7.4.33/8.0.30 单站 runtime、邮件、disable/REST/XML-RPC 通过；PHP 7.4 多站点 2 sites 通过。
+- PHPStan level 5 逐文件 36/36 exit 0；Plugin Check 发布范围 0 errors / 92 warnings；PHPCS WordPress-Extra 11950 errors / 490 warnings，仍 NOT PASS。
+- 发布 ZIP 排除 dev/test/敏感文件；版本头、Stable tag、最低 WordPress/PHP 一致；默认卸载保留通过。最终 ZIP SHA-256 `c5ae7c4f96ab1859ba512bc27f8f2678002d23eb0874e724a6ee2438fcc5ea35`。
+- GitHub 仓库没有 Actions workflow，PR head 无实际 CI job；CI 仍是发布阻断。FeiCode 缺仓治理问题保留。

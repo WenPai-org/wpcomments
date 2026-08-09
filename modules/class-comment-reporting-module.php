@@ -21,7 +21,7 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     }
     
     public function get_name(): string {
-        return __('评论举报', 'wpcomments');
+        return esc_html__('评论举报', 'wpcomments');
     }
     
     public function get_description(): string {
@@ -107,8 +107,8 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     
     public function add_reports_admin_page() {
         add_comments_page(
-            __('评论举报', 'wpcomments'),
-            __('评论举报', 'wpcomments'),
+            esc_html__('评论举报', 'wpcomments'),
+            esc_html__('评论举报', 'wpcomments'),
             'moderate_comments',
             'wpcomments-reports',
             array($this, 'render_reports_page')
@@ -128,18 +128,18 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
         ");
         
         echo '<div class="wrap">';
-        echo '<h1>' . __('评论举报', 'wpcomments') . '</h1>';
+        echo '<h1>' . esc_html__('评论举报', 'wpcomments') . '</h1>';
         
         if (empty($reports)) {
-            echo '<p>' . __('暂无举报记录', 'wpcomments') . '</p>';
+            echo '<p>' . esc_html__('暂无举报记录', 'wpcomments') . '</p>';
         } else {
             echo '<table class="wp-list-table widefat fixed striped">';
             echo '<thead><tr>';
-            echo '<th>' . __('评论内容', 'wpcomments') . '</th>';
-            echo '<th>' . __('评论作者', 'wpcomments') . '</th>';
-            echo '<th>' . __('举报原因', 'wpcomments') . '</th>';
-            echo '<th>' . __('举报时间', 'wpcomments') . '</th>';
-            echo '<th>' . __('操作', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('评论内容', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('评论作者', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('举报原因', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('举报时间', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('操作', 'wpcomments') . '</th>';
             echo '</tr></thead><tbody>';
             
             foreach ($reports as $report) {

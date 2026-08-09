@@ -31,7 +31,6 @@ class WPComments_Settings
      *
      * @var string
      */
-    private $current_tab = 'general';
 
     /**
      * Option group.
@@ -119,9 +118,6 @@ class WPComments_Settings
             )
         );
 
-        $this->current_tab = isset($_GET['tab']) && array_key_exists($_GET['tab'], $this->tabs)
-            ? sanitize_text_field($_GET['tab'])
-            : 'basic';
     }
 
     public function add_admin_menu()
@@ -289,23 +285,22 @@ class WPComments_Settings
         }
         
         if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have sufficient permissions to access this page.'));
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'wpcomments'));
         }
         
         $tab = 'basic';
-        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_basic_nonce']), 'wpcomments_basic_action')) {
+        if (isset($_POST['wpcomments_basic_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_basic_nonce'])), 'wpcomments_basic_action')) {
             $tab = 'basic';
-        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_features_nonce']), 'wpcomments_features_action')) {
+        } elseif (isset($_POST['wpcomments_features_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_features_nonce'])), 'wpcomments_features_action')) {
             $tab = 'features';
-        } elseif (isset($_POST['wpcomments_management_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_management_nonce']), 'wpcomments_management_nonce')) {
+        } elseif (isset($_POST['wpcomments_management_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_management_nonce'])), 'wpcomments_management_nonce')) {
             $tab = 'management';
-        } elseif (isset($_POST['wpcomments_notifications_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_notifications_nonce']), 'wpcomments_notifications_nonce')) {
+        } elseif (isset($_POST['wpcomments_notifications_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_notifications_nonce'])), 'wpcomments_notifications_nonce')) {
             $tab = 'notifications';
-        } elseif (isset($_POST['wpcomments_advanced_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_advanced_nonce']), 'wpcomments_advanced_nonce')) {
+        } elseif (isset($_POST['wpcomments_advanced_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_advanced_nonce'])), 'wpcomments_advanced_nonce')) {
             $tab = 'advanced';
         } else {
-            error_log('[WPComments] Security check failed in handle_form_submission.');
-            wp_die(__('Security check failed.'));
+            wp_die(esc_html__('Security check failed.', 'wpcomments'));
         }
         
         // 处理不同标签页的设置
@@ -328,7 +323,7 @@ class WPComments_Settings
         }
         
         // 重定向到设置页面并显示成功消息
-        wp_redirect(add_query_arg(array(
+        wp_safe_redirect(add_query_arg(array(
             'page' => $this->page_slug,
             'tab' => $tab,
             'settings-updated' => 'true'
@@ -337,30 +332,32 @@ class WPComments_Settings
     }
     
     private function save_basic_settings() {
+        $request = wp_unslash($_POST);
         // 基础设置
-        update_option('wpcomments_disable_comments', !empty($_POST['wpcomments_disable_comments']));
-        update_option('wpcomments_enable_validation', !empty($_POST['wpcomments_enable_validation']));
-        update_option('wpcomments_enable_remove_website_field', !empty($_POST['wpcomments_enable_remove_website_field']));
-        update_option('wpcomments_enable_private_comments', !empty($_POST['wpcomments_enable_private_comments']));
-        update_option('wpcomments_enable_comment_limiter', !empty($_POST['wpcomments_enable_comment_limiter']));
+        update_option('wpcomments_disable_comments', !empty($request['wpcomments_disable_comments']));
+        update_option('wpcomments_enable_validation', !empty($request['wpcomments_enable_validation']));
+        update_option('wpcomments_enable_remove_website_field', !empty($request['wpcomments_enable_remove_website_field']));
+        update_option('wpcomments_enable_private_comments', !empty($request['wpcomments_enable_private_comments']));
+        update_option('wpcomments_enable_comment_limiter', !empty($request['wpcomments_enable_comment_limiter']));
         
         // 私密评论详细设置
-        if (isset($_POST['wpcomments_private_comment_options'])) {
+        if (isset($request['wpcomments_private_comment_options']) && is_array($request['wpcomments_private_comment_options'])) {
             $private_options = array(
-                'default_checked' => !empty($_POST['wpcomments_private_comment_options']['default_checked']),
-                'label_text' => sanitize_text_field($_POST['wpcomments_private_comment_options']['label_text'] ?? '')
+                'default_checked' => !empty($request['wpcomments_private_comment_options']['default_checked']),
+                'label_text' => sanitize_text_field($request['wpcomments_private_comment_options']['label_text'] ?? '')
             );
             update_option('wpcomments_private_comment_options', $private_options);
         }
         
         // 字符限制详细设置
-        if (isset($_POST['wpcomments_comment_limiter_options'])) {
+        if (isset($request['wpcomments_comment_limiter_options']) && is_array($request['wpcomments_comment_limiter_options'])) {
+            $limiter_request = $request['wpcomments_comment_limiter_options'];
             $limiter_options = array(
-                'minimum_characters' => absint($_POST['wpcomments_comment_limiter_options']['minimum_characters'] ?? 20),
-                'maximum_characters' => absint($_POST['wpcomments_comment_limiter_options']['maximum_characters'] ?? 1000),
-                'minimum_message' => sanitize_text_field($_POST['wpcomments_comment_limiter_options']['minimum_message'] ?? ''),
-                'maximum_message' => sanitize_text_field($_POST['wpcomments_comment_limiter_options']['maximum_message'] ?? ''),
-                'enable_admin_feature' => sanitize_text_field($_POST['wpcomments_comment_limiter_options']['enable_admin_feature'] ?? 'no')
+                'minimum_characters' => absint($limiter_request['minimum_characters'] ?? 20),
+                'maximum_characters' => absint($limiter_request['maximum_characters'] ?? 1000),
+                'minimum_message' => sanitize_text_field($limiter_request['minimum_message'] ?? ''),
+                'maximum_message' => sanitize_text_field($limiter_request['maximum_message'] ?? ''),
+                'enable_admin_feature' => 'yes' === sanitize_key($limiter_request['enable_admin_feature'] ?? 'no') ? 'yes' : 'no'
             );
             
             // 验证最大值必须大于最小值
@@ -374,20 +371,21 @@ class WPComments_Settings
     }
     
     private function save_features_settings() {
-        update_option('wpcomments_enable_role_badge', !empty($_POST['wpcomments_enable_role_badge']));
-        update_option('wpcomments_enable_report_comments', !empty($_POST['wpcomments_enable_report_comments']));
+        $request = wp_unslash($_POST);
+        update_option('wpcomments_enable_role_badge', !empty($request['wpcomments_enable_role_badge']));
+        update_option('wpcomments_enable_report_comments', !empty($request['wpcomments_enable_report_comments']));
         
         // 举报阈值设置
-        if (isset($_POST['wpcomments_report_threshold'])) {
-            $threshold = absint($_POST['wpcomments_report_threshold']);
+        if (isset($request['wpcomments_report_threshold'])) {
+            $threshold = absint($request['wpcomments_report_threshold']);
             if ($threshold < 1) $threshold = 3;
             update_option('wpcomments_report_threshold', $threshold);
         }
-        update_option('wpcomments_report_logged_in_only', !empty($_POST['wpcomments_report_logged_in_only']));
-        update_option('wpcomments_report_min_interval', min(1440, absint($_POST['wpcomments_report_min_interval'] ?? 10)));
-        update_option('wpcomments_report_retention_days', max(1, min(3650, absint($_POST['wpcomments_report_retention_days'] ?? 90))));
-        if (isset($_POST['wpcomments_report_privacy_notice'])) {
-            update_option('wpcomments_report_privacy_notice', sanitize_text_field(wp_unslash($_POST['wpcomments_report_privacy_notice'])));
+        update_option('wpcomments_report_logged_in_only', !empty($request['wpcomments_report_logged_in_only']));
+        update_option('wpcomments_report_min_interval', min(1440, absint($request['wpcomments_report_min_interval'] ?? 10)));
+        update_option('wpcomments_report_retention_days', max(1, min(3650, absint($request['wpcomments_report_retention_days'] ?? 90))));
+        if (isset($request['wpcomments_report_privacy_notice'])) {
+            update_option('wpcomments_report_privacy_notice', sanitize_text_field($request['wpcomments_report_privacy_notice']));
         }
     }
     
@@ -413,7 +411,7 @@ class WPComments_Settings
     public function render_settings_page()
     {
         if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have sufficient permissions to access this page.'));
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'wpcomments'));
         }
 
         // 检查多站点网络控制
@@ -427,11 +425,11 @@ class WPComments_Settings
             }
         }
 
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'basic';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'basic';
 ?>
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 设置', 'wpcomments'); ?>
-                <span style="font-size: 13px; padding-left: 10px;"><?php printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
+                <span style="font-size: 13px; padding-left: 10px;"><?php /* translators: %s: plugin version. */ printf(esc_html__('版本: %s', 'wpcomments'), esc_html(WPCOMMENTS_VERSION)); ?></span>
                 <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('文档', 'wpcomments'); ?></a>
                 <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary"><?php esc_html_e('支持', 'wpcomments'); ?></a>
             </h1>
@@ -485,11 +483,18 @@ class WPComments_Settings
                                     ?>
 
                                     <?php if ($controlled_count > 0): ?>
-                                        <em><?php printf(_n('以上 %d 项设置由网络管理员控制，您的更改将不会生效。', '以上 %d 项设置由网络管理员控制，您的更改将不会生效。', $controlled_count, 'wpcomments'), $controlled_count); ?></em>
+                                        <em>
+                                            <?php
+                                            /* translators: %d: number of settings controlled by the network administrator. */
+                                            /* translators: %d: number of settings controlled by the network administrator. */
+                                            $controlled_message = _n('以上 %d 项设置由网络管理员控制，您的更改将不会生效。', '以上 %d 项设置由网络管理员控制，您的更改将不会生效。', $controlled_count, 'wpcomments');
+                                            printf(esc_html($controlled_message), absint($controlled_count));
+                                            ?>
+                                        </em>
                                     <?php endif; ?>
 
                                     <?php if ($network_enforce): ?>
-                                        <br><strong><?php _e('注意：网络管理员已强制使用网络设置，所有更改将被忽略。', 'wpcomments'); ?></strong>
+                                        <br><strong><?php esc_html_e('注意：网络管理员已强制使用网络设置，所有更改将被忽略。', 'wpcomments'); ?></strong>
                                     <?php endif; ?>
                                 </p>
                             </div>
@@ -549,15 +554,15 @@ class WPComments_Settings
             <?php wp_referer_field(); ?>
             <table class="form-table">
                 <tr>
-                    <th><?php _e('评论系统状态', 'wpcomments'); ?></th>
+                    <th><?php esc_html_e('评论系统状态', 'wpcomments'); ?></th>
                     <td>
                         <label class="wpcomments-switch">
                             <input type="hidden" name="wpcomments_disable_comments" value="0">
-                            <input type="checkbox" name="wpcomments_disable_comments" value="1" <?php checked(get_option('wpcomments_disable_comments', false)); ?> <?php echo $network_disabled; ?>>
+                            <input type="checkbox" name="wpcomments_disable_comments" value="1" <?php checked(get_option('wpcomments_disable_comments', false)); ?> <?php echo esc_attr($network_disabled); ?>>
                             <span class="wpcomments-slider"></span>
-                            <span class="wpcomments-switch-label"><?php _e('完全禁用评论功能', 'wpcomments'); ?></span>
+                            <span class="wpcomments-switch-label"><?php esc_html_e('完全禁用评论功能', 'wpcomments'); ?></span>
                         </label>
-                        <p class="description"><?php _e('启用后将完全禁用WordPress的评论系统，包括前台显示和后台管理。', 'wpcomments'); ?></p>
+                        <p class="description"><?php esc_html_e('启用后将完全禁用WordPress的评论系统，包括前台显示和后台管理。', 'wpcomments'); ?></p>
                     </td>
                 </tr>
 
@@ -572,25 +577,25 @@ class WPComments_Settings
                 : get_option('wpcomments_enable_private_comments', false);
             if ($effective_private_enabled): ?>
             <div class="wpcomments-stats-card">
-                <h3><?php _e('私密评论设置', 'wpcomments'); ?></h3>
+                <h3><?php esc_html_e('私密评论设置', 'wpcomments'); ?></h3>
                 <?php $private_options = get_option('wpcomments_private_comment_options', array()); ?>
                 <table class="form-table">
                     <tr>
-                        <th><?php _e('默认选中', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('默认选中', 'wpcomments'); ?></th>
                         <td>
                             <label class="wpcomments-switch">
                                 <input type="checkbox" name="wpcomments_private_comment_options[default_checked]" value="1" <?php checked(!empty($private_options['default_checked'])); ?>>
                                 <span class="wpcomments-slider"></span>
-                                <span class="wpcomments-switch-label"><?php _e('默认勾选私密评论选项', 'wpcomments'); ?></span>
+                                <span class="wpcomments-switch-label"><?php esc_html_e('默认勾选私密评论选项', 'wpcomments'); ?></span>
                             </label>
-                            <p class="description"><?php _e('启用后，评论表单中的私密评论复选框将默认被选中。', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('启用后，评论表单中的私密评论复选框将默认被选中。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('标签文字', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('标签文字', 'wpcomments'); ?></th>
                         <td>
                             <input type="text" name="wpcomments_private_comment_options[label_text]" value="<?php echo esc_attr($private_options['label_text'] ?? __('Keep this comment private (visible to site owners only)', 'wpcomments')); ?>" class="regular-text">
-                            <p class="description"><?php _e('私密评论复选框旁显示的文字。', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('私密评论复选框旁显示的文字。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -602,44 +607,44 @@ class WPComments_Settings
                 : get_option('wpcomments_enable_comment_limiter', false);
             if ($effective_limiter_enabled): ?>
             <div class="wpcomments-stats-card">
-                <h3><?php _e('评论字符限制设置', 'wpcomments'); ?></h3>
+                <h3><?php esc_html_e('评论字符限制设置', 'wpcomments'); ?></h3>
                 <?php $limiter_options = get_option('wpcomments_comment_limiter_options', array()); ?>
                 <table class="form-table">
                     <tr>
-                        <th><?php _e('最小字符数', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('最小字符数', 'wpcomments'); ?></th>
                         <td>
                             <input type="number" name="wpcomments_comment_limiter_options[minimum_characters]" value="<?php echo esc_attr($limiter_options['minimum_characters'] ?? 20); ?>" min="1" max="500" class="small-text">
-                            <p class="description"><?php _e('评论最少需要多少个字符。', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('评论最少需要多少个字符。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('最大字符数', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('最大字符数', 'wpcomments'); ?></th>
                         <td>
                             <input type="number" name="wpcomments_comment_limiter_options[maximum_characters]" value="<?php echo esc_attr($limiter_options['maximum_characters'] ?? 1000); ?>" min="50" max="5000" class="small-text">
-                            <p class="description"><?php _e('评论最多允许多少个字符。', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('评论最多允许多少个字符。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('最小字符错误消息', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('最小字符错误消息', 'wpcomments'); ?></th>
                         <td>
                             <input type="text" name="wpcomments_comment_limiter_options[minimum_message]" value="<?php echo esc_attr($limiter_options['minimum_message'] ?? __('Your comment is below the minimum allowed limit. Please try to be more expressive.', 'wpcomments')); ?>" class="regular-text">
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('最大字符错误消息', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('最大字符错误消息', 'wpcomments'); ?></th>
                         <td>
                             <input type="text" name="wpcomments_comment_limiter_options[maximum_message]" value="<?php echo esc_attr($limiter_options['maximum_message'] ?? __('Your comment exceeds the maximum limit allowed. Please try to reduce it.', 'wpcomments')); ?>" class="regular-text">
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('管理员豁免', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('管理员豁免', 'wpcomments'); ?></th>
                         <td>
                             <label class="wpcomments-switch">
                                 <input type="checkbox" name="wpcomments_comment_limiter_options[enable_admin_feature]" value="yes" <?php checked($limiter_options['enable_admin_feature'] ?? 'no', 'yes'); ?>>
                                 <span class="wpcomments-slider"></span>
-                                <span class="wpcomments-switch-label"><?php _e('管理员不受字符限制', 'wpcomments'); ?></span>
+                                <span class="wpcomments-switch-label"><?php esc_html_e('管理员不受字符限制', 'wpcomments'); ?></span>
                             </label>
-                            <p class="description"><?php _e('启用后，管理员发表评论时不受字符数限制。', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('启用后，管理员发表评论时不受字符数限制。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -648,7 +653,7 @@ class WPComments_Settings
             
             <div class="wpcomments-submit-wrapper">
                 <?php wp_nonce_field('wpcomments_basic_action', 'wpcomments_basic_nonce'); ?>
-                <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
+                <button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button>
             </div>
         </form>
     <?php
@@ -728,7 +733,7 @@ class WPComments_Settings
             <td>
                 <label class="wpcomments-switch">
                     <input type="hidden" name="<?php echo esc_attr($option_name); ?>" value="0" />
-                    <input type="checkbox" name="<?php echo esc_attr($option_name); ?>" value="1" <?php checked($value); ?> <?php echo $disabled; ?>>
+                    <input type="checkbox" name="<?php echo esc_attr($option_name); ?>" value="1" <?php checked($value); ?> <?php echo esc_attr($disabled); ?>>
                     <span class="wpcomments-slider"></span>
                     <span class="wpcomments-switch-label"><?php
                                                             switch ($option_name) {
@@ -853,47 +858,47 @@ class WPComments_Settings
                     : (int) get_option('wpcomments_report_retention_days', 90);
             ?>
             <div class="wpcomments-stats-card">
-                <h3><?php _e('举报系统设置', 'wpcomments'); ?></h3>
+                <h3><?php esc_html_e('举报系统设置', 'wpcomments'); ?></h3>
                 <table class="form-table">
                     <tr>
-                        <th><?php _e('举报阈值', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('举报阈值', 'wpcomments'); ?></th>
                         <td>
                             <input type="number" name="wpcomments_report_threshold" value="<?php echo esc_attr(get_option('wpcomments_report_threshold', 3)); ?>" min="1" max="10" class="small-text">
-                            <p class="description"><?php _e('评论被举报多少次后自动转为待审核状态', 'wpcomments'); ?></p>
+                            <p class="description"><?php esc_html_e('评论被举报多少次后自动转为待审核状态', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('举报隐私提示', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('举报隐私提示', 'wpcomments'); ?></th>
                         <td>
-                            <input type="text" name="wpcomments_report_privacy_notice" value="<?php echo esc_attr($val_privacy); ?>" class="regular-text" <?php echo $disabled_privacy; ?> />
-                            <p class="description"><?php _e('用于“举报”按钮的悬浮提示与无障碍描述。支持 {days} 占位符，将被替换为保留天数。', 'wpcomments'); ?></p>
+                            <input type="text" name="wpcomments_report_privacy_notice" value="<?php echo esc_attr($val_privacy); ?>" class="regular-text" <?php echo esc_attr($disabled_privacy); ?> />
+                            <p class="description"><?php esc_html_e('用于“举报”按钮的悬浮提示与无障碍描述。支持 {days} 占位符，将被替换为保留天数。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('仅登录用户可举报', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('仅登录用户可举报', 'wpcomments'); ?></th>
                         <td>
                             <label class="wpcomments-switch">
                                 <?php if (empty($disabled_logged_in)) : ?>
                                     <input type="hidden" name="wpcomments_report_logged_in_only" value="0">
                                 <?php endif; ?>
-                                <input type="checkbox" name="wpcomments_report_logged_in_only" value="1" <?php checked($val_logged_in); ?> <?php echo $disabled_logged_in; ?>>
+                                <input type="checkbox" name="wpcomments_report_logged_in_only" value="1" <?php checked($val_logged_in); ?> <?php echo esc_attr($disabled_logged_in); ?>>
                                 <span class="wpcomments-slider"></span>
-                                <span class="wpcomments-switch-label"><?php _e('启用后，仅登录用户可发起举报', 'wpcomments'); ?></span>
+                                <span class="wpcomments-switch-label"><?php esc_html_e('启用后，仅登录用户可发起举报', 'wpcomments'); ?></span>
                             </label>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('最小举报间隔（分钟）', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('最小举报间隔（分钟）', 'wpcomments'); ?></th>
                         <td>
-                            <input type="number" name="wpcomments_report_min_interval" value="<?php echo esc_attr($val_min_interval); ?>" min="1" max="1440" class="small-text" <?php echo $disabled_min_interval; ?>>
-                            <p class="description"><?php _e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
+                            <input type="number" name="wpcomments_report_min_interval" value="<?php echo esc_attr((string) $val_min_interval); ?>" min="1" max="1440" class="small-text" <?php echo esc_attr($disabled_min_interval); ?>>
+                            <p class="description"><?php esc_html_e('同一主体（登录用户或来源IP）针对同一评论的最小间隔，默认 10 分钟。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php _e('举报数据保留天数', 'wpcomments'); ?></th>
+                        <th><?php esc_html_e('举报数据保留天数', 'wpcomments'); ?></th>
                         <td>
-                            <input type="number" name="wpcomments_report_retention_days" value="<?php echo esc_attr($val_retention); ?>" min="1" max="3650" class="small-text" <?php echo $disabled_retention; ?>>
-                            <p class="description"><?php _e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
+                            <input type="number" name="wpcomments_report_retention_days" value="<?php echo esc_attr((string) $val_retention); ?>" min="1" max="3650" class="small-text" <?php echo esc_attr($disabled_retention); ?>>
+                            <p class="description"><?php esc_html_e('超过该天数的举报记录将自动清理（每日）。', 'wpcomments'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -904,7 +909,7 @@ class WPComments_Settings
                 // 已在表单顶部使用：wp_nonce_field('wpcomments_features_action', 'wpcomments_features_nonce');
                 // 这里不再重复输出，避免同名字段覆盖导致校验失败。
                 ?>
-                <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
+                <button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button>
             </div>
         </form>
     <?php
@@ -929,11 +934,11 @@ class WPComments_Settings
                 : get_option('wpcomments_enable_frequently_replies', false);
             if ($effective_frequently_enabled): ?>
                 <div class="wpcomments-stats-card">
-                    <h3><?php _e('常用回复管理', 'wpcomments'); ?></h3>
-                    <p><?php _e('管理您的常用回复模板，提高评论回复效率。', 'wpcomments'); ?></p>
+                    <h3><?php esc_html_e('常用回复管理', 'wpcomments'); ?></h3>
+                    <p><?php esc_html_e('管理您的常用回复模板，提高评论回复效率。', 'wpcomments'); ?></p>
                     <div class="wpcomments-action-buttons">
-                        <a href="<?php echo admin_url('edit-comments.php?page=wpcomments-frequently-replies'); ?>" class="button button-secondary">
-                            <?php _e('管理常用回复', 'wpcomments'); ?>
+                        <a href="<?php echo esc_url(admin_url('edit-comments.php?page=wpcomments-frequently-replies')); ?>" class="button button-secondary">
+                            <?php esc_html_e('管理常用回复', 'wpcomments'); ?>
                         </a>
                     </div>
                 </div>
@@ -944,11 +949,11 @@ class WPComments_Settings
                 : get_option('wpcomments_enable_delete_pending', false);
             if ($effective_delete_pending_enabled): ?>
                 <div class="wpcomments-stats-card">
-                    <h3><?php _e('删除待审核评论', 'wpcomments'); ?></h3>
-                    <p><?php _e('批量删除站点内所有待审核状态的评论。', 'wpcomments'); ?></p>
+                    <h3><?php esc_html_e('删除待审核评论', 'wpcomments'); ?></h3>
+                    <p><?php esc_html_e('批量删除站点内所有待审核状态的评论。', 'wpcomments'); ?></p>
                     <div class="wpcomments-action-buttons">
-                        <a href="<?php echo admin_url('edit-comments.php?page=wpcomments-delete-pending'); ?>" class="button button-secondary">
-                            <?php _e('打开删除工具', 'wpcomments'); ?>
+                        <a href="<?php echo esc_url(admin_url('edit-comments.php?page=wpcomments-delete-pending')); ?>" class="button button-secondary">
+                            <?php esc_html_e('打开删除工具', 'wpcomments'); ?>
                         </a>
                     </div>
                 </div>
@@ -956,7 +961,7 @@ class WPComments_Settings
 
             <div class="wpcomments-submit-wrapper">
                 <?php wp_nonce_field('wpcomments_management_nonce', 'wpcomments_management_nonce'); ?>
-                <button type="submit" class="button button-primary"><?php _e('保存设置', 'wpcomments'); ?></button>
+                <button type="submit" class="button button-primary"><?php esc_html_e('保存设置', 'wpcomments'); ?></button>
             </div>
         </form>
     <?php
@@ -980,19 +985,19 @@ class WPComments_Settings
     ?>
         <form method="post" action="" id="wpcomments-advanced-form">
         <div class="wpcomments-stats-card">
-            <h3><?php _e('插件信息', 'wpcomments'); ?></h3>
+            <h3><?php esc_html_e('插件信息', 'wpcomments'); ?></h3>
             <table class="form-table">
                 <tr>
-                    <th><?php _e('版本', 'wpcomments'); ?></th>
+                    <th><?php esc_html_e('版本', 'wpcomments'); ?></th>
                     <td><?php echo esc_html(WPCOMMENTS_VERSION); ?></td>
                 </tr>
                 <tr>
-                    <th><?php _e('插件路径', 'wpcomments'); ?></th>
+                    <th><?php esc_html_e('插件路径', 'wpcomments'); ?></th>
                     <td><?php echo esc_html(WPCOMMENTS_PATH); ?></td>
                 </tr>
                 <tr>
-                    <th><?php _e('网络激活', 'wpcomments'); ?></th>
-                    <td><?php echo WPCOMMENTS_IS_NETWORK ? __('是', 'wpcomments') : __('否', 'wpcomments'); ?></td>
+                    <th><?php esc_html_e('网络激活', 'wpcomments'); ?></th>
+                    <td><?php echo esc_html(WPCOMMENTS_IS_NETWORK ? __('是', 'wpcomments') : __('否', 'wpcomments')); ?></td>
                 </tr>
             </table>
 
@@ -1009,10 +1014,10 @@ class WPComments_Settings
 
             <div class="wpcomments-action-buttons">
                 <a href="https://github.com/WenPai-org/wpcomments" target="_blank" rel="noopener noreferrer" class="button button-secondary">
-                    <?php _e('文档', 'wpcomments'); ?>
+                    <?php esc_html_e('文档', 'wpcomments'); ?>
                 </a>
                 <a href="https://github.com/WenPai-org/wpcomments/issues" target="_blank" rel="noopener noreferrer" class="button button-secondary">
-                    <?php _e('报告问题', 'wpcomments'); ?>
+                    <?php esc_html_e('报告问题', 'wpcomments'); ?>
                 </a>
             </div>
         </div>

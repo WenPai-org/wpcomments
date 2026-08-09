@@ -45,10 +45,10 @@ class WPComments_Email_Notification {
     
     public function init() {
         $request_uri = isset($_SERVER['REQUEST_URI'])
-            ? wp_unslash($_SERVER['REQUEST_URI'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI']))
             : '';
         if (preg_match('/wpcomments\/unsubscribe/', $request_uri)) {
-            $comment_id = filter_input(INPUT_GET, 'comment', FILTER_SANITIZE_NUMBER_INT);
+            $comment_id = (int) filter_input(INPUT_GET, 'comment', FILTER_SANITIZE_NUMBER_INT);
             $comment = get_comment($comment_id);
 
             if (!$comment) {
@@ -64,7 +64,7 @@ class WPComments_Email_Notification {
                 exit;
             }
 
-            $uri = get_permalink($comment->comment_post_ID);
+            $uri = get_permalink((int) $comment->comment_post_ID);
             $this->persist_subscription_opt_out($comment_id);
             wp_safe_redirect($uri ?: home_url('/'));
             exit;
@@ -204,7 +204,7 @@ class WPComments_Email_Notification {
             return;
         }
 
-        $post = get_post($comment->comment_post_ID);
+        $post = get_post((int) $comment->comment_post_ID);
         if (!$post) {
             return;
         }
@@ -226,7 +226,7 @@ class WPComments_Email_Notification {
             return;
         }
 
-        $subscription_status = get_comment_meta($parent_comment->comment_ID, 'wpcomments_subscribe_to_comment', true);
+        $subscription_status = get_comment_meta((int) $parent_comment->comment_ID, 'wpcomments_subscribe_to_comment', true);
         if ($subscription_status !== 'on') {
             return;
         }
@@ -585,7 +585,7 @@ class WPComments_Email_Notification {
         if (!current_user_can('manage_options')) {
             wp_die(esc_html__('权限不足', 'wpcomments'));
         }
-        if (!isset($_POST['wpcomments_email_nonce']) || !wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
+        if (!isset($_POST['wpcomments_email_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_email_nonce'])), 'wpcomments_email_settings')) {
             return;
         }
         
@@ -597,7 +597,7 @@ class WPComments_Email_Notification {
             'wpcomments_email_privacy_url' => isset($_POST['wpcomments_email_privacy_url']) ? esc_url_raw(wp_unslash($_POST['wpcomments_email_privacy_url'])) : '',
             'wpcomments_email_from_email' => isset($_POST['wpcomments_email_from_email']) ? sanitize_email(wp_unslash($_POST['wpcomments_email_from_email'])) : '',
             'wpcomments_email_from_name' => isset($_POST['wpcomments_email_from_name']) ? sanitize_text_field(wp_unslash($_POST['wpcomments_email_from_name'])) : '',
-            'wpcomments_email_subject_type' => isset($_POST['wpcomments_email_subject_type']) && 'custom' === wp_unslash($_POST['wpcomments_email_subject_type']) ? 'custom' : 'default',
+            'wpcomments_email_subject_type' => isset($_POST['wpcomments_email_subject_type']) && 'custom' === sanitize_key(wp_unslash($_POST['wpcomments_email_subject_type'])) ? 'custom' : 'default',
             'wpcomments_email_custom_subject' => isset($_POST['wpcomments_email_custom_subject']) ? sanitize_text_field(wp_unslash($_POST['wpcomments_email_custom_subject'])) : ''
         );
         
@@ -624,7 +624,7 @@ class WPComments_Email_Notification {
         // 处理在独立页面保存设置
         $page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
         if ('wpcomments-email-settings' === $page) {
-            if (isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
+            if (isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_email_nonce'])), 'wpcomments_email_settings')) {
                 $this->save_settings();
                 $redirect = wp_get_referer();
                 if ($redirect) {
@@ -640,7 +640,7 @@ class WPComments_Email_Notification {
         // 处理在主设置页面（通知标签页）中保存设置
         if ('wpcomments-settings' === $page) {
             $tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : '';
-            if ($tab === 'notifications' && isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(wp_unslash($_POST['wpcomments_email_nonce']), 'wpcomments_email_settings')) {
+            if ($tab === 'notifications' && isset($_POST['wpcomments_email_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['wpcomments_email_nonce'])), 'wpcomments_email_settings')) {
                 $this->save_settings();
                 wp_safe_redirect(add_query_arg(array(
                     'page' => 'wpcomments-settings',

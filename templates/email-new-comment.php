@@ -9,6 +9,18 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/** @var string $subject */
+/** @var string $comment_author */
+/** @var string $comment_author_email */
+/** @var string $comment_date */
+/** @var string $post_title */
+/** @var string $post_url */
+/** @var string $comment_content */
+/** @var string $spam_url */
+/** @var string $delete_label */
+/** @var string $delete_url */
+/** @var string $settings_url */
 ?>
 <!DOCTYPE html>
 <html>
@@ -127,7 +139,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <div class="comment-content">
             <h3>评论内容：</h3>
-            <?php echo wpautop(esc_html($comment_content)); ?>
+            <?php echo wp_kses_post(wpautop(esc_html($comment_content))); ?>
         </div>
 
         <div class="actions">

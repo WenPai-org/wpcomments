@@ -59,16 +59,18 @@ class Character_Limiter_Module implements WPComments_Module_Interface {
         }
 
         $comment_content = isset($_POST['comment'])
-            ? trim(wp_unslash($_POST['comment']))
+            ? trim(wp_kses_post(wp_unslash($_POST['comment'])))
             : '';
         $comment_length = mb_strlen($comment_content, 'UTF-8');
         
         if ($options['min_chars'] > 0 && $comment_length < $options['min_chars']) {
-            wp_die(sprintf(__('评论至少需要 %d 个字符，您输入了 %d 个字符', 'wpcomments'), $options['min_chars'], $comment_length));
+            /* translators: 1: minimum characters, 2: submitted characters. */
+            wp_die(esc_html(sprintf(__('评论至少需要 %1$d 个字符，您输入了 %2$d 个字符', 'wpcomments'), $options['min_chars'], $comment_length)));
         }
         
         if ($options['max_chars'] > 0 && $comment_length > $options['max_chars']) {
-            wp_die(sprintf(__('评论不能超过 %d 个字符，您输入了 %d 个字符', 'wpcomments'), $options['max_chars'], $comment_length));
+            /* translators: 1: maximum characters, 2: submitted characters. */
+            wp_die(esc_html(sprintf(__('评论不能超过 %1$d 个字符，您输入了 %2$d 个字符', 'wpcomments'), $options['max_chars'], $comment_length)));
         }
     }
     
@@ -77,6 +79,7 @@ class Character_Limiter_Module implements WPComments_Module_Interface {
         
         if ($options['show_counter']) {
             $counter_html = '<div id="wpcomments-counter-container" class="wpcomments-character-counter">';
+            /* translators: %d: maximum permitted number of comment characters. */
             $counter_html .= '<span id="wpcomments-char-counter" class="wpcomments-counter-text">' . esc_html(sprintf(__('字符数: 0/%d', 'wpcomments'), $options['max_chars'])) . '</span>';
             $counter_html .= '<div class="wpcomments-progress-bar"><div id="wpcomments-progress-fill" class="wpcomments-progress-fill"></div></div>';
             $counter_html .= '</div>';

@@ -135,3 +135,68 @@
 - 分支：`codex/wpcomments-audit-hardening`。
 - Pull Request：<https://github.com/WenPai-org/wpcomments/pull/1>。
 - PR 未合并，未创建 tag/release，未部署任何站点。
+
+## 9. [CX] 第三轮复核与修复
+
+### 9.1 扫描分桶与文件级风险
+
+第三轮没有降低规则、添加 baseline 或忽略第一方错误。原始结果与人工分桶如下：
+
+| 工具 | 原始结果 | 第一方代码 | 打包依赖/生成物/开发文件 | 规则上下文 |
+|---|---:|---|---|---|
+| PHPCS WordPress-Extra | 11994 errors / 491 warnings | 生产代码 11988 errors / 491 warnings，主要是历史空白、命名、文档块、转义和 i18n | `build/index.asset.php` 6 errors；没有 vendor 第三方目录 | PHPCS 同一条记录可能同时含格式与语义，误报不从总数重复扣除 |
+| PHPStan level 5 | 127 errors | 49 条真实类型、死 wrapper、错误 API 签名或未使用代码 | 0 条第三方 | 78 条静态上下文缺失：48 条入口常量、30 条 include 模板变量 |
+| Plugin Check | 218 errors / 192 warnings | 发布代码 203 errors / 148 warnings | tests/构建辅助 15 errors / 44 warnings；发布 ZIP 不含这些文件 | 匿名核心评论提交 nonce、可信 `$wpdb->prefix` 表名和 include 上下文需人工判定 |
+
+文件级 Top 风险及处理：
+
+1. `includes/class-wpcomments-settings.php`、`includes/class-wpcomments-network-settings.php`：统一 unslash/sanitize、权限/nonce、safe redirect、输出转义和 i18n；网络统计改为明确的当前站点统计。
+2. `includes/modules/class-module-*.php`：原 wrapper 未实现完整接口并调用不存在方法；改为有弃用标记、委托真实模块的兼容 wrapper，模块管理器保留兼容回退。
+3. `wpcomments.php`：修正 `register_setting()` 参数；迁移函数只有在 schema、索引和数据回填全部成功后才写数据库版本；删除 `CREATE TABLE IF NOT EXISTS`，因为该形式会使 `dbDelta()` 无法升级旧表。
+4. `includes/class-wpcomments-email-notification.php`、`templates/email-*.php`：补 ID 类型、nonce/input 清洗、模板变量契约和最终输出转义。
+5. `includes/class-wpcomments-frequently-replies.php`：数组输入逐项清洗；修正 style 依赖参数类型和整数属性输出。
+
+最终扫描：
+
+- PHPCS WordPress-Extra（排除不会进入发布包的 tests/build）：**NOT PASS**，11950 errors / 490 warnings（36 files）；仍以历史格式和文档块为主，不能作为发布绿灯。
+- PHPStan level 5 + WordPress extension：**PASS**。整组扫描受单进程 1 GiB 内存限制中止，因此使用完全相同配置逐文件扫描 36 个发布 PHP 文件；36/36 exit 0，0 errors。静态 bootstrap 只补 WordPress/插件入口常量和模板变量契约，没有忽略错误。
+- Plugin Check 源码树：**NOT PASS**，开发测试文件仍会报告错误；发布范围已达到 **0 errors / 92 warnings**。测试、docs 和 `.distignore` 均不进入 ZIP。
+
+### 9.2 破坏性迁移 fixture
+
+所有迁移测试均使用独立 Compose project、独立 MariaDB volume，数据库名强制以 `wpcomments_test_` 开头；`tests/wp-migration-smoke.php` 同时检查显式环境开关，不满足条件时 exit 2。没有连接或修改生产数据库。
+
+| 场景 | 环境 | 结果 |
+|---|---|---|
+| 单站旧表升级 | WordPress 5.9.3 / PHP 8.0.30 / disposable MariaDB | PASS：旧列升级、索引、日期回填、2 行历史数据保留 |
+| 重复升级 | 同上 | PASS：schema 与行数不变 |
+| 失败保护与重试 | 同上 | PASS：强制 schema 验证失败时版本保持 1，解除失败后可重试到 2 |
+| 多站旧表升级 | WordPress 5.9.3 / PHP 7.4.33，2 sites | PASS：两个站点分别完成升级、幂等、失败保护和重试 |
+
+MySQL DDL 没有跨 `dbDelta()` 的事务回滚；本修复提供的是“失败不推进版本 + 可重试”的逻辑回滚，不把它描述为数据库事务回滚。
+
+### 9.3 最低兼容矩阵与浏览器
+
+| WordPress | PHP | 单站 runtime | 邮件 | disable + REST/XML-RPC | multisite |
+|---|---|---|---|---|---|
+| 5.9.3 | 7.4.33 | PASS | PASS，截获 pending/approved 2 封 | PASS | PASS，2 sites；同时通过迁移 fixture |
+| 5.9.3 | 8.0.30 | PASS | PASS，截获 pending/approved 2 封 | PASS | SKIP；多站点由 PHP 7.4 单元覆盖 |
+| 7.0.2 | 8.3.33 | PASS（第二轮及第三轮回归） | PASS | PASS | PASS（第二轮） |
+
+Playwright 使用真实 Chromium 登录一次性 WordPress，打开 `options-general.php?page=wpcomments-settings`：页面标题和“WPComments 设置 版本: 2.0.0”可见，控制台只有 WordPress 自带的 JQMIGRATE log，无 warning/error；第三轮判定 PASS。第二轮的举报、私密、角色徽章、字符限制、置顶和完全禁用浏览器流程仍保留为功能证据。
+
+### 9.4 发布包、版本与卸载
+
+- 发布包由 `tests/build-package.sh` 构建并通过 `unzip -t`；最终 SHA-256 为 `c5ae7c4f96ab1859ba512bc27f8f2678002d23eb0874e724a6ee2438fcc5ea35`。
+- ZIP 清单不含 `.git`、`.github`、tests、docs、vendor、node_modules、Composer/npm 文件、PHPCS/PHPStan 配置、日志、SQL、私钥或 `.env`。
+- 插件头 `Version: 2.0.0`、`Requires PHP: 7.4`；readme `Stable tag: 2.0.0`、`Requires at least: 5.9`、`Requires PHP: 7.4`，三者一致。
+- 数据库升级路径为 `WPCOMMENTS_DB_VERSION=2`，旧表真实 fixture 已通过。
+- 默认卸载保留测试 PASS；只有明确 opt-in 才删除站点/网络数据。
+
+### 9.5 仍未关闭的发布门闸
+
+1. PHPCS WordPress-Extra 仍有大规模历史格式/文档债务，**NOT PASS**。
+2. Plugin Check 发布范围虽然 0 errors，但仍有 warnings，**NOT PASS**；主要是匿名评论入口 nonce、可信动态表名/直接 DB 查询、前缀和商标提示，需继续逐条判定或修复。
+3. 仓库没有 GitHub Actions workflow，PR head 没有可见 check run/job；CI **NOT PASS**，不能用 GitHub combined status 的 pending 代替实际 job。
+4. FeiCode 仍缺对应仓库；GitHub 是用户指定真源，但内部镜像/备份治理未闭环。
+5. 未创建 tag/release、未发布、未部署、未合并 PR。

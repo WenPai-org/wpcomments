@@ -111,10 +111,10 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     public function modify_private_comment_actions($actions, $comment) {
         if ($this->is_private_comment($comment->comment_ID)) {
             if (isset($actions['approve'])) {
-                $actions['approve'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot be made public', 'wpcomments') . '">' . __('Approve') . '</span>';
+                $actions['approve'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot be made public', 'wpcomments') . '">' . esc_html__('Approve', 'wpcomments') . '</span>';
             }
             if (isset($actions['reply'])) {
-                $actions['reply'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot receive replies', 'wpcomments') . '">' . __('Reply') . '</span>';
+                $actions['reply'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot receive replies', 'wpcomments') . '">' . esc_html__('Reply', 'wpcomments') . '</span>';
             }
         }
         return $actions;
