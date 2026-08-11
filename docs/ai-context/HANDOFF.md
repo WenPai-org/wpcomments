@@ -45,4 +45,4 @@
 - Plugin Check 2.0.0 发布 ZIP 为 0 errors / 1 warning；唯一剩余为 `wpcomments` slug，CSV SHA-256 `433e947dfd7a9750d264642ec93b4978b0d45b693267304653cbde8f68afbfcf`。
 - 最终本地矩阵：WP5.9/PHP7.4、WP5.9/PHP8.0、WP7.0.2/PHP8.3 单站及 WP7.0.2/PHP8.3 两站 multisite 全部 exit 0；单站/多站旧表迁移、幂等、失败保护/重试和 Chromium E2E 均 exit 0。
 - FeiCode 精确历史导入、保护、单向镜像边界、回滚与 devops Board change 草案在 `docs/governance/wpcomments-feicode-import.md`；草案未执行。
-- GitHub CI 与可复现 ZIP 的最终 head 证据待候选提交后补记。PR 继续 Open；禁止合并、发布、部署。
+- implementation head `29fb3757d37b54711836617a73b2ddc78b40ac6c` 的 push/PR runs `31465540735`、`31465543527` 均 success，16/16 checks success；同 head 两次 ZIP 一致，SHA-256 `005fe4cd43b65f195d58c5628dd368da7bd1aeca672597ffbd94b968f013f950`。PR 继续 Open；禁止合并、发布、部署。

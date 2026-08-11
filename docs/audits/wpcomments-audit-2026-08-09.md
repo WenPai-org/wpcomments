@@ -307,7 +307,9 @@ Plugin Check 最终 CSV SHA-256 为 `433e947dfd7a9750d264642ec93b4978b0d45b69326
 
 `tests/build-package.sh` 现在按排序文件清单、统一 mtime 和 `zip -X` 构建；`tests/check-package.sh` 明确拒绝 `.github`、tests、docs/HANDOFF、vendor、node_modules、Composer/npm、两个 PHPCS 配置、PHPStan、`.env` 和临时文件。治理文档不会进入发布 ZIP。
 
-本节首次提交时 GitHub Actions 状态为 **PENDING**；只有同一 head 的 push 与 pull_request 两个 run 都完成、8 个唯一 job 各出现两次并形成 16/16 success，才更新为 PASS。PR #1 必须保持 Open/unmerged。
+implementation head `29fb3757d37b54711836617a73b2ddc78b40ac6c` 的 push run `31465540735` 与 pull_request run `31465543527` 均 completed/success；8 个唯一 job 各出现两次，16/16 check runs 为 success。PR #1 仍须保持 Open/unmerged。
+
+同一 implementation head 连续构建 `/tmp/wpcomments-r5-29fb375-{a,b}.zip`，两包 `cmp` exit 0、均为 55 entries、SHA-256 均为 `005fe4cd43b65f195d58c5628dd368da7bd1aeca672597ffbd94b968f013f950`。这是测试候选，不是 release。
 
 ### 11.5 FeiCode 真源与 Board 人工动作
 
@@ -323,7 +325,7 @@ Plugin Check 最终 CSV SHA-256 为 `433e947dfd7a9750d264642ec93b4978b0d45b69326
 | 发布风险增量静态门 | **PASS** | 30 文件 release PHPCS、PHPCompatibility、PHPStan 均绿 |
 | WordPress.org 接收 | **NOT PASS** | 包 slug `wpcomments` 仍有受限词 warning，需要新 slug/身份迁移人审 |
 | 全仓历史 PHPCS | **NOT PASS** | 12090 errors / 477 warnings，不以本轮 scoped gate冒充清零 |
-| GitHub 自动 CI | **PENDING** | 等候候选提交后两个 runs 的 16 个真实 checks |
+| GitHub 自动 CI | **PASS** | implementation head 的 push/PR 两个 runs 均 success，16/16 真实 checks success |
 | FeiCode 真源治理 | **NOT PASS** | Board change 尚未审批/执行，FeiCode canonical 尚未建立 |
 
 PR #1 继续保持 Open；禁止合并、发布、部署。
