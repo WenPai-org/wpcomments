@@ -51,7 +51,8 @@ class WPComments_Network_Settings {
         $network_enabled = get_site_option('wpcomments_network_enabled', 1);
         $network_enforce = get_site_option('wpcomments_network_enforce', 0);
         
-        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'network';
+        $active_tab = sanitize_key((string) filter_input(INPUT_GET, 'tab', FILTER_UNSAFE_RAW));
+        $active_tab = '' !== $active_tab ? $active_tab : 'network';
         ?>
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 网络设置', 'wpcomments'); ?>

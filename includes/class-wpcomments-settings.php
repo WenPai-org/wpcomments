@@ -303,22 +303,24 @@ class WPComments_Settings
             wp_die(esc_html__('Security check failed.', 'wpcomments'));
         }
         
+        $request = wp_unslash($_POST);
+
         // 处理不同标签页的设置
         switch ($tab) {
             case 'basic':
-                $this->save_basic_settings();
+                $this->save_basic_settings($request);
                 break;
             case 'features':
-                $this->save_features_settings();
+                $this->save_features_settings($request);
                 break;
             case 'management':
-                $this->save_management_settings();
+                $this->save_management_settings($request);
                 break;
             case 'notifications':
-                $this->save_notifications_settings();
+                $this->save_notifications_settings($request);
                 break;
             case 'advanced':
-                $this->save_advanced_settings();
+                $this->save_advanced_settings($request);
                 break;
         }
         
@@ -331,8 +333,7 @@ class WPComments_Settings
         exit;
     }
     
-    private function save_basic_settings() {
-        $request = wp_unslash($_POST);
+    private function save_basic_settings($request) {
         // 基础设置
         update_option('wpcomments_disable_comments', !empty($request['wpcomments_disable_comments']));
         update_option('wpcomments_enable_validation', !empty($request['wpcomments_enable_validation']));
@@ -370,8 +371,7 @@ class WPComments_Settings
         }
     }
     
-    private function save_features_settings() {
-        $request = wp_unslash($_POST);
+    private function save_features_settings($request) {
         update_option('wpcomments_enable_role_badge', !empty($request['wpcomments_enable_role_badge']));
         update_option('wpcomments_enable_report_comments', !empty($request['wpcomments_enable_report_comments']));
         
@@ -389,23 +389,23 @@ class WPComments_Settings
         }
     }
     
-    private function save_management_settings() {
-        update_option('wpcomments_enable_delete_pending', !empty($_POST['wpcomments_enable_delete_pending']));
-        update_option('wpcomments_enable_frequently_replies', !empty($_POST['wpcomments_enable_frequently_replies']));
-        update_option('wpcomments_enable_moderation_info', !empty($_POST['wpcomments_enable_moderation_info']));
-        update_option('wpcomments_enable_sticky_comments', !empty($_POST['wpcomments_enable_sticky_comments']));
-        update_option('wpcomments_enable_gongan_beian', !empty($_POST['wpcomments_enable_gongan_beian']));
+    private function save_management_settings($request) {
+        update_option('wpcomments_enable_delete_pending', !empty($request['wpcomments_enable_delete_pending']));
+        update_option('wpcomments_enable_frequently_replies', !empty($request['wpcomments_enable_frequently_replies']));
+        update_option('wpcomments_enable_moderation_info', !empty($request['wpcomments_enable_moderation_info']));
+        update_option('wpcomments_enable_sticky_comments', !empty($request['wpcomments_enable_sticky_comments']));
+        update_option('wpcomments_enable_gongan_beian', !empty($request['wpcomments_enable_gongan_beian']));
     }
     
-    private function save_notifications_settings() {
-        update_option('wpcomments_enable_email_notification', !empty($_POST['wpcomments_enable_email_notification']));
+    private function save_notifications_settings($request) {
+        update_option('wpcomments_enable_email_notification', !empty($request['wpcomments_enable_email_notification']));
     }
     
-    private function save_advanced_settings() {
+    private function save_advanced_settings($request) {
         if (is_multisite()) {
             return;
         }
-        update_option('wpcomments_delete_data_on_uninstall', !empty($_POST['wpcomments_delete_data_on_uninstall']));
+        update_option('wpcomments_delete_data_on_uninstall', !empty($request['wpcomments_delete_data_on_uninstall']));
     }
 
     public function render_settings_page()
@@ -425,7 +425,8 @@ class WPComments_Settings
             }
         }
 
-        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'basic';
+        $active_tab = sanitize_key((string) filter_input(INPUT_GET, 'tab', FILTER_UNSAFE_RAW));
+        $active_tab = '' !== $active_tab ? $active_tab : 'basic';
 ?>
         <div class="wrap wpcomments-settings">
             <h1><?php esc_html_e('WPComments 设置', 'wpcomments'); ?>

@@ -23,7 +23,7 @@
 | 完全禁用评论 | `class-wpcomments-disable-mode.php` | 过滤评论开放状态、REST/XML-RPC 方法、评论查询和后台入口；不删除既有评论。 |
 | 删除待审核评论 | `modules/class-delete-pending-module.php` | 管理页按权限和 nonce 删除 `hold` 评论。 |
 | 移除网站字段 | `modules/class-remove-website-field-module.php` | 过滤评论表单字段。 |
-| 评论验证 | `modules/class-validation-module.php`、`assets/js/validation.js` | 浏览器提示 + `pre_comment_on_post` 服务端校验。 |
+| 评论验证 | `modules/class-validation-module.php`、`assets/js/validation.js` | 浏览器提示 + `preprocess_comment` 基于核心组装数据做服务端校验，兼容 REST/XML-RPC/程序化入口。 |
 | 私密评论 | `modules/class-private-comments-module.php` | 表单勾选写入 comment meta `wpcomments_private`；过滤内容与回复权限。 |
 | 字符限制 | `modules/class-character-limiter-module.php`、`assets/js/comment-limiter.js`、`assets/css/comment-limiter.css` | `wpcomments_comment_limiter_options` 同时驱动 DOM、浏览器计数和服务端上限。 |
 | 举报 | `modules/class-comment-reporting-module.php`、`assets/js/comment-report.js` | AJAX → 权限/nonce/公开评论校验 → 频率/重复限制 → `{$prefix}wpcomments_reports` → 后台列表/清理 cron。 |
@@ -39,7 +39,7 @@
 
 - WordPress options/site options：功能开关、网络强制/覆盖规则、邮件、举报、字符限制和隐私设置。
 - Comment meta：`wpcomments_private`、`wpcomments_sticky`、`wpcomments_subscribe_to_comment`、`comodinfo_comment_revisions`、`yjwgaba_ipport`。
-- 自定义表：每站点 `{$wpdb->prefix}wpcomments_reports`；数据库版本为 2。
+- 自定义表：每站点 `{$wpdb->prefix}wpcomments_reports`；数据库版本为 3，包含评论+IP、IP+日期复合索引。
 - 外部运行依赖仅为 WordPress/PHP/数据库和站点邮件传输；无第三方 HTTP API、远程更新器、凭据或 SSRF 入口。构建产物依赖已随插件打包的 WordPress 区块脚本。
 
 ## 3. 已确认并修复的问题
@@ -254,3 +254,76 @@ PHPCompatibilityWP 7.4+ 为 **PASS**；这两份扫描没有证明新的 PHP 未
 implementation head `b28da3f6100e9aec39763291b0093acc6f71bbdb` 的两个 workflow runs 均完成：lint、PHPCompatibility、PHPStan、release ZIP、WP5.9/PHP7.4、WP5.9/PHP8.0、WP7.0.2/PHP8.3 单站与多站共 16/16 check runs 为 success。最终测试 ZIP `/tmp/wpcomments-fourth-final.zip` 为 66 entries，SHA-256 `5067d43ea6348edd5f7ba5982b082ae3cbd31322f01ec645a5d133aee8f7f86c`。
 
 PR #1 继续保持 Open；未合并、未发布、未部署。WordPress.org slug 重命名、订阅大站索引以及剩余 DB/nonce review debt 是仍未关闭的发布阻断项。
+
+
+## 11. [CX] 第五轮本地发布候选收口（2026-08-11）
+
+### 11.1 确定性修复与保留边界
+
+本轮没有删除用户功能，也没有改变既有 option、hook、comment meta、举报表后缀或卸载默认保留策略。
+
+1. 插件展示名和 readme 标题改为 **WenPai Comments**，描述移除受限名称；最低 WordPress/PHP、版本号和 Stable tag 保持 `5.9 / 7.4 / 2.0.0`。最低 WordPress 5.9 仍需仓库内中文语言包，因此改用明确 locale 的 `load_textdomain()`，不删除打包翻译。
+2. 评论验证和字符限制改读 `preprocess_comment` 的核心组装数据，不再直接读匿名评论 `POST`，普通评论、REST、XML-RPC 与程序化 `comment_post` 不被插件 nonce 阻断。
+3. 私密、回复订阅和 GDPR 自定义字段共用评论上下文 nonce；只有提交插件自定义字段时才在插入前验证。持久化位置再次校验，伪造字段不能留下已插入评论或写入 meta。真实浏览器测试还发现登录态订阅复选框重复渲染，现已区分登录/匿名字段入口并保证过滤器幂等。
+4. 举报表名由固定后缀加实际 `$wpdb->prefix` 组成，并在 SQL 前限制为 `[A-Za-z0-9_]+`；WordPress 5.9 没有 `%i`，因此每个 schema/live anti-abuse 查询只做逐行带理由豁免。后台列表缓存 60 秒并在写入/清理时失效；重复和频率判断保持实时。`COUNT(*)` 改为 `SELECT 1 ... LIMIT 1`，数据库版本升为 3，新增 `(comment_id,user_ip_hash)` 与 `(user_ip_hash,report_date)` 索引。
+5. 回复订阅只存正向 `on`；未勾选和退订删除 meta。v3 升级清除旧 `off` 行，列表不再按 `meta_value` 扫描。保留 comment meta 数据模型以兼容既有站点，本轮不为扫描清零引入新订阅表。
+6. 设置保存入口在 capability + tab nonce 通过后只 unslash 一次，再把 request 传给各保存函数；GET 排序/标签只用 allowlist/filter input。常用回复数组仍逐字段 `sanitize_text_field`/`wp_kses`，只在准确数据流行使用 PHPCS 注释。
+
+WordPress.org 对包根 slug `wpcomments` 仍有 1 条受限词 warning。改 slug 会改变插件 basename、Text Domain、更新身份和升级冲突边界；在 FeiCode canonical 建立及新 slug/迁移方案获人工批准前不擅自改包身份。因此它仍是发布阻断，不伪装成已解决。
+
+### 11.2 静态检查与增量门
+
+| 检查 | 命令摘要 | 结果 |
+|---|---|---|
+| PHP lint | `find ... -name '*.php' ... php -l` | **PASS**，exit 0 |
+| 静态契约 | `tests/static-contracts.sh` | **PASS**，exit 0 |
+| PHPCompatibilityWP | `phpcs --standard=PHPCompatibilityWP --runtime-set testVersion 7.4-` | **PASS**，exit 0 |
+| PHPStan | `phpstan analyse --configuration=phpstan.neon.dist --memory-limit=2G` | **PASS**，0 errors，exit 0 |
+| release PHPCS | `tests/release-phpcs.sh` | **PASS**，30 个相对 `origin/main` 变更的第一方运行 PHP 文件，exit 0 |
+| Plugin Check 2.0.0 | `tests/run-plugin-check.sh /tmp/wpcomments-r5-plugin-check-ultimate.csv` | **NOT PASS**，0 errors / 1 warning，命令 exit 0；唯一剩余为包 slug `wpcomments` |
+| 全仓 WordPress-Extra | 排除 tests/build/vendor，JSON report | **NOT PASS**，12090 errors / 477 warnings，exit 2；仍是第一方历史格式/文档债务 |
+
+`phpcs.release.xml.dist` 只启用 PHPCompatibilityWP、Security、DB、capability、deprecated 与危险 PHP API 等发布风险规则；`tests/release-phpcs-files.txt` 是 30 文件显式清单。runner 会拒绝遗漏的变更运行 PHP、空清单和 `phpcs:disable/phpcs:set`；没有 baseline、目录级 blanket ignore 或为清零进行全仓机械格式化。DB 只在已验证标识符且必须实时/直接访问的具体行使用 scoped ignore。
+
+Plugin Check 最终 CSV SHA-256 为 `433e947dfd7a9750d264642ec93b4978b0d45b693267304653cbde8f68afbfcf`；全仓 WordPress-Extra JSON SHA-256 为 `dd51dd45f52ed5ef7a553d79affb66904c191d08d1ae69b4f90156db61fafb57`。
+
+### 11.3 disposable WordPress、迁移与浏览器
+
+所有数据库和浏览器测试使用独立 Compose project、随机宿主端口和一次性 volume，结束执行 `down -v`；没有连接生产数据库。
+
+| 环境/入口 | 覆盖 | 结果 |
+|---|---|---|
+| WP 5.9.3 / PHP 7.4.33 单站 | runtime、邮件、完全禁用、REST、XML-RPC | **PASS**，exit 0 |
+| WP 5.9.3 / PHP 8.0.30 单站 | 同上 | **PASS**，exit 0 |
+| WP 7.0.2 / PHP 8.3.33 单站 | 同上，含 v3 schema/index | **PASS**，exit 0 |
+| WP 7.0.2 / PHP 8.3.33 multisite（2 sites） | 每站存储、网络覆盖、cron | **PASS**，exit 0 |
+| WP 5.9.3 / PHP 8.0 单站迁移 | 旧表、2 行保留、复合索引、清理 `off` meta、重复升级、强制失败不推进、重试 | **PASS**，exit 0 |
+| WP 5.9.3 / PHP 7.4 multisite 迁移（2 sites） | 每站同一破坏性 fixture | **PASS**，exit 0 |
+| WP 7.0.2 / PHP 8.3 + Chromium | 设置页、置顶、角色徽章、评论 nonce、私密+订阅真实提交、匿名举报、console、DB meta/status/table | **PASS**，exit 0；private=3、sticky=2、reports=1 |
+
+迁移的“回滚”仍是失败不推进 DB version 并允许重试，不宣称 MySQL DDL 跨 `dbDelta()` 的事务回滚。版本化入口为 `tests/run-migration-ci.sh` 与 `tests/run-e2e.sh`；E2E 固定 Playwright `1.58.2`，不是沿用历史截图。
+
+### 11.4 发布包与 CI
+
+`tests/build-package.sh` 现在按排序文件清单、统一 mtime 和 `zip -X` 构建；`tests/check-package.sh` 明确拒绝 `.github`、tests、docs/HANDOFF、vendor、node_modules、Composer/npm、两个 PHPCS 配置、PHPStan、`.env` 和临时文件。治理文档不会进入发布 ZIP。
+
+本节首次提交时 GitHub Actions 状态为 **PENDING**；只有同一 head 的 push 与 pull_request 两个 run 都完成、8 个唯一 job 各出现两次并形成 16/16 success，才更新为 PASS。PR #1 必须保持 Open/unmerged。
+
+### 11.5 FeiCode 真源与 Board 人工动作
+
+完整未执行草案见 `docs/governance/wpcomments-feicode-import.md`。它只申请：创建空、未初始化、`mirror=false` 的 FeiCode `WenPai-org/wpcomments`；导入全部 heads/tags；用双方 fsck、refs manifest 和 reachable-object manifest 验证；设置 default `main` 与 W1 禁直推保护。GitHub `refs/pull/*` 只归档证据，不写 Forgejo 保留 refs。
+
+切换后 FeiCode 才是 canonical；未来持续镜像需另开 change，只允许 FeiCode → GitHub 单向 push，禁止反向 pull 或双向循环。Board 草案必须由 devops 发布和人工审批，本轮没有执行 Board 命令、创建 FeiCode 仓库、镜像、tag/release、合并或部署。
+
+### 11.6 发布门
+
+| 门闸 | 结果 | 未关闭项 |
+|---|---|---|
+| 功能/迁移/E2E | **PASS** | 以上均为非生产 disposable 样本 |
+| 发布风险增量静态门 | **PASS** | 30 文件 release PHPCS、PHPCompatibility、PHPStan 均绿 |
+| WordPress.org 接收 | **NOT PASS** | 包 slug `wpcomments` 仍有受限词 warning，需要新 slug/身份迁移人审 |
+| 全仓历史 PHPCS | **NOT PASS** | 12090 errors / 477 warnings，不以本轮 scoped gate冒充清零 |
+| GitHub 自动 CI | **PENDING** | 等候候选提交后两个 runs 的 16 个真实 checks |
+| FeiCode 真源治理 | **NOT PASS** | Board change 尚未审批/执行，FeiCode canonical 尚未建立 |
+
+PR #1 继续保持 Open；禁止合并、发布、部署。

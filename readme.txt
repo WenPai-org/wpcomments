@@ -1,4 +1,4 @@
-# WPComments
+# WenPai Comments
 Contributors: wenpai
 Tags: comments
 Requires at least: 5.9
@@ -7,7 +7,7 @@ Stable tag: 2.0.0
 License: GPLv2 or later
 Requires PHP: 7.4
 
-WPComments everywhere in WordPress.
+Modular comment controls and moderation tools for WordPress.
 
 ## Description
 

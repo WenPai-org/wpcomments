@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name:  WPComments
- * Description:  WPComments everywhere in WordPress.
+ * Plugin Name:  WenPai Comments
+ * Description:  Modular comment controls and moderation tools for WordPress.
  * Version:      2.0.0
  * Plugin URI:   https://wenpai.org/plugins/wpcomments/
  * Author:       WPComments.com
@@ -22,7 +22,7 @@ if (!defined("WPINC")) {
 }
 
 define("WPCOMMENTS_VERSION", "2.0.0");
-define("WPCOMMENTS_DB_VERSION", "2");
+define("WPCOMMENTS_DB_VERSION", "3");
 define("WPCOMMENTS_PLUGIN_FILE", __FILE__);
 define("WPCOMMENTS_URL", plugin_dir_url(__FILE__));
 define("WPCOMMENTS_PATH", plugin_dir_path(__FILE__));
@@ -38,6 +38,8 @@ add_action("plugins_loaded", __NAMESPACE__ . "\load_textdomain");
 add_action("init", __NAMESPACE__ . "\maybe_upgrade_database", 5);
 add_action("admin_init", __NAMESPACE__ . '\register_general_settings_field');
 add_action("wpcomments_reinit_features", __NAMESPACE__ . '\reinit_features');
+add_filter('comment_form_submit_field', __NAMESPACE__ . '\add_comment_context_nonce', 5);
+add_filter('preprocess_comment', __NAMESPACE__ . '\validate_comment_context_request', 1);
 
 register_activation_hook(
     WPCOMMENTS_PLUGIN_FILE,
@@ -100,11 +102,80 @@ function is_network_wide(string $plugin_file): bool
  */
 function load_textdomain(): void
 {
-    load_plugin_textdomain(
-        "wpcomments",
-        false,
-        dirname(plugin_basename(__FILE__)) . "/languages/",
+    $locale = function_exists('determine_locale') ? determine_locale() : get_locale();
+    $mofile = WPCOMMENTS_PATH . 'languages/wpcomments-' . sanitize_file_name($locale) . '.mo';
+    if (is_readable($mofile)) {
+        \load_textdomain('wpcomments', $mofile);
+    }
+}
+
+
+/**
+ * Add a nonce for WPComments-specific fields in the public comment form.
+ *
+ * The nonce is only enforced when a WPComments field is submitted, so native
+ * REST, XML-RPC, and programmatic comment creation keep their core behavior.
+ *
+ * @param string $submit_field Existing submit field HTML.
+ * @return string
+ */
+function add_comment_context_nonce(string $submit_field): string
+{
+    return wp_nonce_field(
+        'wpcomments_comment_context',
+        'wpcomments_comment_nonce',
+        true,
+        false
+    ) . $submit_field;
+}
+
+/**
+ * Read a scalar POST value without exposing an unsanitized superglobal to callers.
+ *
+ * @param string $key Request field name.
+ * @return string
+ */
+function comment_request_value(string $key): string
+{
+    $value = filter_input(INPUT_POST, $key, FILTER_UNSAFE_RAW);
+    return is_string($value) ? wp_unslash($value) : '';
+}
+
+/**
+ * Verify the public-comment nonce before persisting WPComments-specific data.
+ *
+ * @return bool
+ */
+function verify_comment_context_nonce(): bool
+{
+    $nonce = comment_request_value('wpcomments_comment_nonce');
+    return '' !== $nonce && (bool) wp_verify_nonce(
+        sanitize_text_field($nonce),
+        'wpcomments_comment_context'
     );
+}
+
+
+/**
+ * Reject forged WPComments-specific public fields before WordPress inserts a comment.
+ *
+ * @param array<string,mixed> $commentdata Core comment data.
+ * @return array<string,mixed>
+ */
+function validate_comment_context_request(array $commentdata): array
+{
+    $has_plugin_field = '' !== comment_request_value('wp-comment-private')
+        || '' !== comment_request_value('wpcomments_subscribe_to_comment')
+        || '' !== comment_request_value('wpcomments_gdpr');
+    if ($has_plugin_field && !verify_comment_context_nonce()) {
+        wp_die(
+            esc_html__('Security check failed.', 'wpcomments'),
+            '',
+            array('response' => 403)
+        );
+    }
+
+    return $commentdata;
 }
 
 /**
@@ -207,13 +278,36 @@ function activate_wpcomments($network_wide): void
     }
 }
 
+
+/**
+ * Return the current site's reports table after validating the identifier.
+ *
+ * WordPress 5.9 does not support the %i placeholder. The prefix and fixed
+ * suffix are therefore validated before an identifier is quoted for SQL.
+ *
+ * @param bool $quoted Whether to return a backtick-quoted identifier.
+ * @return string
+ * @throws \UnexpectedValueException If the configured prefix is not a SQL identifier.
+ */
+function reports_table_name(bool $quoted = false): string
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'wpcomments_reports';
+    if (1 !== preg_match('/^[A-Za-z0-9_]+$/D', $table_name)) {
+        throw new \UnexpectedValueException('Invalid WordPress database prefix.');
+    }
+
+    return $quoted ? '`' . $table_name . '`' : $table_name;
+}
+
 /**
  * Create reports table (hashed IP)
  */
 function wpcomments_create_reports_table(): bool
 {
     global $wpdb;
-    $table_name = $wpdb->prefix . "wpcomments_reports";
+    $table_name = reports_table_name();
+    $quoted_table_name = reports_table_name(true);
     $charset_collate = $wpdb->get_charset_collate();
     // dbDelta() requires the canonical "CREATE TABLE table" form to alter legacy schemas.
     $sql = "CREATE TABLE {$table_name} (
@@ -229,13 +323,15 @@ function wpcomments_create_reports_table(): bool
         KEY comment_id (comment_id),
         KEY user_id (user_id),
         KEY user_ip_hash (user_ip_hash),
-        KEY report_date (report_date)
+        KEY report_date (report_date),
+        KEY comment_ip (comment_id, user_ip_hash),
+        KEY ip_date (user_ip_hash, report_date)
     ) {$charset_collate};";
     require_once ABSPATH . "wp-admin/includes/upgrade.php";
     dbDelta($sql);
 
-    $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table_name}", 0);
-    $indexes = $wpdb->get_col("SHOW INDEX FROM {$table_name}", 2);
+    $columns = $wpdb->get_col("SHOW COLUMNS FROM {$quoted_table_name}", 0); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; schema inspection must be live.
+    $indexes = $wpdb->get_col("SHOW INDEX FROM {$quoted_table_name}", 2); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; schema inspection must be live.
     $required_columns = [
         "id",
         "comment_id",
@@ -246,7 +342,7 @@ function wpcomments_create_reports_table(): bool
         "report_time",
         "report_date",
     ];
-    $required_indexes = ["PRIMARY", "comment_id", "user_id", "user_ip_hash", "report_date"];
+    $required_indexes = ["PRIMARY", "comment_id", "user_id", "user_ip_hash", "report_date", "comment_ip", "ip_date"];
     $schema_valid = !array_diff($required_columns, (array) $columns)
         && !array_diff($required_indexes, (array) $indexes);
     $schema_valid = (bool) apply_filters(
@@ -262,14 +358,18 @@ function wpcomments_create_reports_table(): bool
         return false;
     }
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- one-time custom-table migration; writes are not cached.
     $migration_result = $wpdb->query(
-        "UPDATE {$table_name} SET report_date = report_time WHERE report_date = '0000-00-00 00:00:00' AND report_time <> '0000-00-00 00:00:00'"
+        "UPDATE {$quoted_table_name} SET report_date = report_time WHERE report_date = '0000-00-00 00:00:00' AND report_time <> '0000-00-00 00:00:00'" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; WP 5.9 has no %i placeholder.
     );
     if (false === $migration_result) {
         do_action("wpcomments_database_upgrade_failed", $table_name, $wpdb->last_error);
         return false;
     }
 
+    // Version 3 stores only positive subscriptions. Removing legacy "off" rows
+    // makes the indexed meta_key proportional to subscribers instead of comments.
+    delete_metadata('comment', 0, 'wpcomments_subscribe_to_comment', 'off', true);
     update_option("wpcomments_db_version", WPCOMMENTS_DB_VERSION, false);
     return true;
 }
@@ -340,7 +440,7 @@ function wpcomments_schedule_cleanup(): void
 function cleanup_old_reports(): void
 {
     global $wpdb;
-    $table_name = $wpdb->prefix . "wpcomments_reports";
+    $table_name = reports_table_name(true);
     $days = (int) (\class_exists("WPComments\\WPComments_Network_Settings")
         ? \WPComments\WPComments_Network_Settings::get_effective_setting(
             "wpcomments_report_retention_days",
@@ -351,10 +451,12 @@ function cleanup_old_reports(): void
             \apply_filters("wpcomments_report_retention_days", 90),
         ));
     $days = max(1, min(3650, $days));
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- scheduled custom-table write; writes are not cached.
     $wpdb->query(
         $wpdb->prepare(
-            "DELETE FROM {$table_name} WHERE report_date < ( NOW() - INTERVAL %d DAY )",
+            "DELETE FROM {$table_name} WHERE report_date < ( NOW() - INTERVAL %d DAY )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- table identifier is validated; WP 5.9 has no %i placeholder.
             $days,
         ),
     );
+    wp_cache_delete('admin_reports', 'wpcomments');
 }

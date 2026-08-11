@@ -298,7 +298,8 @@ class WPComments_Frequently_Replies {
             );
         }
         
-        $posted_replies = isset($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every reply is sanitized field-by-field immediately below.
+        $posted_replies = isset($_POST['replies']) && is_array($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
         $replies = array_map(
             function ($reply) {
                 $reply = is_array($reply) ? $reply : array();
@@ -403,7 +404,8 @@ class WPComments_Frequently_Replies {
             wp_send_json_error(array('message' => esc_html__('安全验证失败', 'wpcomments')));
         }
         
-        $posted_replies = isset($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every reply is sanitized field-by-field immediately below.
+        $posted_replies = isset($_POST['replies']) && is_array($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
         $replies = array_map(
             function ($reply) {
                 $reply = is_array($reply) ? $reply : array();

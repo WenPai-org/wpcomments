@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -36,6 +38,8 @@ jobs:
       - run: composer install --no-interaction --no-progress --prefer-dist
       - name: PHP 7.4 and newer compatibility
         run: vendor/bin/phpcs --standard=PHPCompatibilityWP --runtime-set testVersion 7.4- --extensions=php --ignore='*/vendor/*,*/tests/*,*/build/*' .
+      - name: Release-risk PHPCS
+        run: tests/release-phpcs.sh
 
   phpstan:
     runs-on: ubuntu-24.04

@@ -56,7 +56,7 @@ class WPComments_Email_Notification {
                 exit;
             }
 
-            $user_key = isset($_GET['key']) ? sanitize_text_field(wp_unslash($_GET['key'])) : '';
+            $user_key = sanitize_text_field((string) filter_input(INPUT_GET, 'key', FILTER_UNSAFE_RAW));
             $real_key = $this->secret_key($comment_id);
 
             if (!$user_key || !hash_equals($real_key, $user_key)) {
@@ -249,6 +249,11 @@ class WPComments_Email_Notification {
     }
     
     public function comment_fields($fields) {
+        // Logged-in forms receive these fields through comment_form_submit_field.
+        if (is_user_logged_in()) {
+            return $fields;
+        }
+
         $label = apply_filters('wpcomments_email_checkbox_label', '有人回复时邮件通知我');
         $checked = $this->get_default_checked() ? 'checked' : '';
 
@@ -265,6 +270,11 @@ class WPComments_Email_Notification {
     
     public function comment_fields_logged_in($submit_field) {
         $checkbox = '';
+
+        // Some comment-form integrations apply the submit-field filter more than once.
+        if (false !== strpos($submit_field, 'name="wpcomments_subscribe_to_comment"')) {
+            return $submit_field;
+        }
 
         if (is_user_logged_in()) {
             $label = apply_filters('wpcomments_email_checkbox_label', '有人回复时邮件通知我');
@@ -283,21 +293,27 @@ class WPComments_Email_Notification {
     }
     
     public function persist_subscription_opt_in($comment_id) {
-        $value = isset($_POST['wpcomments_subscribe_to_comment'])
-            && 'on' === sanitize_key(wp_unslash($_POST['wpcomments_subscribe_to_comment']))
-            ? 'on'
-            : 'off';
-        return add_comment_meta($comment_id, 'wpcomments_subscribe_to_comment', $value, true);
+        $subscribed = 'on' === sanitize_key(comment_request_value('wpcomments_subscribe_to_comment'));
+        if (!$subscribed) {
+            delete_comment_meta($comment_id, 'wpcomments_subscribe_to_comment');
+            return true;
+        }
+        if (!verify_comment_context_nonce()) {
+            wp_die(esc_html__('Security check failed.', 'wpcomments'), '', array('response' => 403));
+        }
+
+        return update_comment_meta($comment_id, 'wpcomments_subscribe_to_comment', 'on');
     }
     
     public function persist_subscription_opt_out($comment_id) {
-        return update_comment_meta($comment_id, 'wpcomments_subscribe_to_comment', 'off');
+        return delete_comment_meta($comment_id, 'wpcomments_subscribe_to_comment');
     }
     
     public function verify_comment_meta_data($comment) {
         if ($this->get_display_gdpr_notice() && !is_admin()) {
-            if (!isset($_POST['wpcomments_gdpr'])) {
-                wp_die('错误：您必须同意条款才能发送评论。请点击浏览器的返回按钮，如果您同意条款请重新提交您的评论。');
+            $accepted = '1' === sanitize_key(comment_request_value('wpcomments_gdpr'));
+            if (!$accepted || !verify_comment_context_nonce()) {
+                wp_die(esc_html__('错误：您必须同意条款才能发送评论。请点击浏览器的返回按钮，如果您同意条款请重新提交您的评论。', 'wpcomments'));
             }
         }
         return $comment;

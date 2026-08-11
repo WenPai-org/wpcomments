@@ -54,6 +54,7 @@ function wpcomments_test_seed_legacy_table() {
         'user_ip' => '',
         'report_time' => '0000-00-00 00:00:00',
     ));
+    add_comment_meta(12, 'wpcomments_subscribe_to_comment', 'off');
     delete_option('wpcomments_db_version');
     return $table;
 }
@@ -67,7 +68,7 @@ function wpcomments_test_assert_migrated($table) {
             wpcomments_test_fail('missing migrated column ' . $column);
         }
     }
-    foreach (array('user_ip_hash', 'report_date') as $index) {
+    foreach (array('user_ip_hash', 'report_date', 'comment_ip', 'ip_date') as $index) {
         if (!in_array($index, $indexes, true)) {
             wpcomments_test_fail('missing migrated index ' . $index);
         }
@@ -78,6 +79,9 @@ function wpcomments_test_assert_migrated($table) {
     }
     if (WPCOMMENTS_DB_VERSION !== (string) get_option('wpcomments_db_version')) {
         wpcomments_test_fail('database version was not advanced after verified migration');
+    }
+    if (metadata_exists('comment', 12, 'wpcomments_subscribe_to_comment')) {
+        wpcomments_test_fail('legacy negative subscription metadata was not removed');
     }
 }
 

@@ -11,4 +11,5 @@
 /package.json
 /package-lock.json
 /phpcs.xml.dist
+/phpcs.release.xml.dist
 /phpstan.neon.dist

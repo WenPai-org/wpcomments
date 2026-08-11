@@ -103,7 +103,10 @@ $wpcomments_comment_meta_keys = array(
 function wpcomments_drop_reports_table_for_blog() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'wpcomments_reports';
-    $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    if (1 !== preg_match('/^[A-Za-z0-9_]+$/D', $table_name)) {
+        return;
+    }
+    $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- explicit opt-in uninstall with a validated identifier; writes are not cached.
 }
 
 if ( is_multisite() ) {

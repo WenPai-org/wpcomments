@@ -24,6 +24,10 @@ $columns = $wpdb->get_col("SHOW COLUMNS FROM {$table}", 0);
 foreach (array('id', 'comment_id', 'user_id', 'user_ip', 'user_ip_hash', 'reason', 'report_time', 'report_date') as $column) {
     $check(in_array($column, $columns, true), "reports table is missing {$column}");
 }
+$indexes = $wpdb->get_col("SHOW INDEX FROM {$table}", 2);
+foreach (array('comment_ip', 'ip_date') as $index) {
+    $check(in_array($index, $indexes, true), "reports table is missing index {$index}");
+}
 $check((string) get_option('wpcomments_db_version') === (string) WPCOMMENTS_DB_VERSION, 'database version is stale');
 $check((bool) wp_next_scheduled('wpcomments_cleanup_reports'), 'cleanup schedule is missing');
 

@@ -51,11 +51,17 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     }
     
     public function save_private_comment_meta($comment_id) {
-        if (isset($_POST['wp-comment-private']) && $_POST['wp-comment-private'] == '1') {
-            $commentarr = array('comment_ID' => $comment_id, 'comment_approved' => 0);
-            wp_update_comment($commentarr);
-            update_comment_meta($comment_id, 'wpcomments_private', 1);
+        $private = sanitize_key(comment_request_value('wp-comment-private'));
+        if ('1' !== $private) {
+            return;
         }
+        if (!verify_comment_context_nonce()) {
+            wp_die(esc_html__('Security check failed.', 'wpcomments'), '', array('response' => 403));
+        }
+
+        $commentarr = array('comment_ID' => $comment_id, 'comment_approved' => 0);
+        wp_update_comment($commentarr);
+        update_comment_meta($comment_id, 'wpcomments_private', 1);
     }
     
     public function is_private_comment($comment_id) {

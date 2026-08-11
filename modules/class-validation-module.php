@@ -30,7 +30,7 @@ class Validation_Module implements WPComments_Module_Interface {
     
     private function init(): void {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_validation_scripts'));
-        add_action('pre_comment_on_post', array($this, 'validate_comment_submission'));
+        add_filter('preprocess_comment', array($this, 'validate_comment_submission'));
     }
     
     public function enqueue_validation_scripts() {
@@ -46,10 +46,10 @@ class Validation_Module implements WPComments_Module_Interface {
         }
     }
     
-    public function validate_comment_submission($post_id) {
-        $comment = isset($_POST['comment']) ? trim(wp_kses_post(wp_unslash($_POST['comment']))) : '';
-        $author = isset($_POST['author']) ? trim(sanitize_text_field(wp_unslash($_POST['author']))) : '';
-        $email = isset($_POST['email']) ? trim(sanitize_email(wp_unslash($_POST['email']))) : '';
+    public function validate_comment_submission($commentdata) {
+        $comment = trim(wp_kses_post((string) ($commentdata['comment_content'] ?? '')));
+        $author = trim(sanitize_text_field((string) ($commentdata['comment_author'] ?? '')));
+        $email = trim(sanitize_email((string) ($commentdata['comment_author_email'] ?? '')));
         if ('' === $comment) {
             wp_die(esc_html__('评论内容不能为空', 'wpcomments'));
         }
@@ -65,5 +65,7 @@ class Validation_Module implements WPComments_Module_Interface {
         if ('' !== $email && !is_email($email)) {
             wp_die(esc_html__('请输入有效的邮箱地址', 'wpcomments'));
         }
+
+        return $commentdata;
     }
 }

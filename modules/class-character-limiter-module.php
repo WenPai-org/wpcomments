@@ -30,7 +30,7 @@ class Character_Limiter_Module implements WPComments_Module_Interface {
     
     private function init(): void {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_character_limiter_scripts'));
-        add_action('pre_comment_on_post', array($this, 'validate_comment_length'));
+        add_filter('preprocess_comment', array($this, 'validate_comment_length'));
         add_filter('comment_form_field_comment', array($this, 'add_character_counter'));
     }
     
@@ -52,15 +52,13 @@ class Character_Limiter_Module implements WPComments_Module_Interface {
         }
     }
     
-    public function validate_comment_length($post_id) {
+    public function validate_comment_length($commentdata) {
         $options = $this->get_character_limiter_options();
         if (current_user_can('moderate_comments') && 'yes' !== $options['enable_admin_feature']) {
-            return;
+            return $commentdata;
         }
 
-        $comment_content = isset($_POST['comment'])
-            ? trim(wp_kses_post(wp_unslash($_POST['comment'])))
-            : '';
+        $comment_content = trim(wp_kses_post((string) ($commentdata['comment_content'] ?? '')));
         $comment_length = mb_strlen($comment_content, 'UTF-8');
         
         if ($options['min_chars'] > 0 && $comment_length < $options['min_chars']) {
@@ -72,6 +70,8 @@ class Character_Limiter_Module implements WPComments_Module_Interface {
             /* translators: 1: maximum characters, 2: submitted characters. */
             wp_die(esc_html(sprintf(__('评论不能超过 %1$d 个字符，您输入了 %2$d 个字符', 'wpcomments'), $options['max_chars'], $comment_length)));
         }
+
+        return $commentdata;
     }
     
     public function add_character_counter($field) {

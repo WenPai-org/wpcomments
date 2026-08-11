@@ -12,7 +12,7 @@ if grep -Eq '^wpcomments/(\.git|\.github|docs|tests|vendor|node_modules)(/|$)' <
     exit 1
 fi
 
-if grep -Eq '^wpcomments/(composer\.(json|lock)|package(-lock)?\.json|phpcs\.xml\.dist|phpstan\.neon\.dist|\.distignore|\.env|.*HANDOFF.*)$' <<<"$entries"; then
+if grep -Eq '^wpcomments/(composer\.(json|lock)|package(-lock)?\.json|phpcs(\.release)?\.xml\.dist|phpstan\.neon\.dist|\.distignore|\.env|.*HANDOFF.*)$' <<<"$entries"; then
     echo 'FAIL: release ZIP contains development metadata or handoff material' >&2
     exit 1
 fi

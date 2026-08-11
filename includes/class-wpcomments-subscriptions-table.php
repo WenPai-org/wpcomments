@@ -66,12 +66,13 @@ class WPComments_Subscriptions_Table extends \WP_List_Table {
     private function load_data($number, $offset) {
         $data = array();
 
-        $orderby = (!empty($_GET['orderby'])) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'date';
-        $order = (!empty($_GET['order']) && 'asc' === strtolower(sanitize_key(wp_unslash($_GET['order'])))) ? 'ASC' : 'DESC';
+        $orderby = sanitize_key((string) filter_input(INPUT_GET, 'orderby', FILTER_UNSAFE_RAW));
+        $orderby = '' !== $orderby ? $orderby : 'date';
+        $requested_order = sanitize_key((string) filter_input(INPUT_GET, 'order', FILTER_UNSAFE_RAW));
+        $order = 'asc' === strtolower($requested_order) ? 'ASC' : 'DESC';
         $orderby_map = array('date' => 'comment_date', 'name' => 'comment_author', 'email' => 'comment_author_email', 'post' => 'comment_post_ID');
         $comments = get_comments(array(
-            'meta_key' => 'wpcomments_subscribe_to_comment',
-            'meta_value' => 'on',
+            'meta_key' => 'wpcomments_subscribe_to_comment', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- indexed key contains positive subscriptions only since DB v3.
             'number' => absint($number),
             'offset' => absint($offset),
             'orderby' => $orderby_map[$orderby] ?? 'comment_date',
@@ -99,8 +100,7 @@ class WPComments_Subscriptions_Table extends \WP_List_Table {
 
     private function count_data() {
         return (int) get_comments(array(
-            'meta_key' => 'wpcomments_subscribe_to_comment',
-            'meta_value' => 'on',
+            'meta_key' => 'wpcomments_subscribe_to_comment', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- indexed key contains positive subscriptions only since DB v3.
             'count' => true,
         ));
     }
@@ -133,8 +133,10 @@ class WPComments_Subscriptions_Table extends \WP_List_Table {
     }
     
     public function sort_data($a, $b) {
-        $orderby = (!empty($_GET['orderby'])) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'date';
-        $order = (!empty($_GET['order'])) ? sanitize_key(wp_unslash($_GET['order'])) : 'desc';
+        $orderby = sanitize_key((string) filter_input(INPUT_GET, 'orderby', FILTER_UNSAFE_RAW));
+        $orderby = '' !== $orderby ? $orderby : 'date';
+        $order = sanitize_key((string) filter_input(INPUT_GET, 'order', FILTER_UNSAFE_RAW));
+        $order = '' !== $order ? $order : 'desc';
         if (!in_array($orderby, array('date', 'name', 'email', 'post'), true)) {
             $orderby = 'date';
         }

@@ -118,14 +118,22 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     public function render_reports_page() {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
-        $reports = $wpdb->get_results("
-            SELECT r.*, c.comment_content, c.comment_author, c.comment_date 
-            FROM {$table_name} r 
-            LEFT JOIN {$wpdb->comments} c ON r.comment_id = c.comment_ID 
-            ORDER BY r.report_date DESC
-            LIMIT 500
-        ");
+        $table_name = reports_table_name(true);
+        $comments_table = $wpdb->comments;
+        if (1 !== preg_match('/^[A-Za-z0-9_]+$/D', $comments_table)) {
+            wp_die(esc_html__('Invalid WordPress database prefix.', 'wpcomments'));
+        }
+        $comments_table = '`' . $comments_table . '`';
+        $reports = wp_cache_get('admin_reports', 'wpcomments');
+        if (false === $reports) {
+            $sql = 'SELECT r.*, c.comment_content, c.comment_author, c.comment_date '
+                . 'FROM ' . $table_name . ' r '
+                . 'LEFT JOIN ' . $comments_table . ' c ON r.comment_id = c.comment_ID '
+                . 'ORDER BY r.report_date DESC LIMIT 500';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifiers are validated above; result is cached below.
+            $reports = $wpdb->get_results($sql);
+            wp_cache_set('admin_reports', $reports, 'wpcomments', MINUTE_IN_SECONDS);
+        }
         
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__('评论举报', 'wpcomments') . '</h1>';
@@ -168,23 +176,25 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     
     private function has_user_reported($comment_id, $user_ip_hash) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
+        $table_name = reports_table_name(true);
         
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- anti-abuse decisions must use live custom-table data.
         $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} WHERE comment_id = %d AND user_ip_hash = %s",
+            "SELECT 1 FROM {$table_name} WHERE comment_id = %d AND user_ip_hash = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; WP 5.9 has no %i placeholder.
             $comment_id,
             $user_ip_hash
-        ));
+        )); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- anti-abuse decisions must not use stale cache data.
         
         return $count > 0;
     }
     
     private function save_report($comment_id, $user_ip_hash, $reason) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
+        $table_name = reports_table_name();
         
         $now = current_time('mysql');
-        return false !== $wpdb->insert(
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- custom-table write through wpdb::insert; writes are not cached.
+        $saved = false !== $wpdb->insert(
             $table_name,
             array(
                 'comment_id' => $comment_id,
@@ -197,6 +207,10 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
             ),
             array('%d', '%d', '%s', '%s', '%s', '%s', '%s')
         );
+        if ($saved) {
+            wp_cache_delete('admin_reports', 'wpcomments');
+        }
+        return $saved;
     }
 
     private function has_recent_report($user_ip_hash) {
@@ -207,9 +221,10 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
             return false;
         }
 
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
+        $table_name = reports_table_name(true);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- rate-limit decisions must use live custom-table data.
         $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} WHERE user_ip_hash = %s AND report_date >= ( NOW() - INTERVAL %d MINUTE )",
+            "SELECT 1 FROM {$table_name} WHERE user_ip_hash = %s AND report_date >= ( NOW() - INTERVAL %d MINUTE ) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; WP 5.9 has no %i placeholder.
             $user_ip_hash,
             $minutes
         ));
