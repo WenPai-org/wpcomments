@@ -7,6 +7,7 @@ includes/class-wpcomments-modules.php
 includes/class-wpcomments-network-settings.php
 includes/class-wpcomments-settings.php
 includes/class-wpcomments-subscriptions-table.php
+includes/class-wpcomments-updater.php
 includes/modules/class-module-comment-limiter.php
 includes/modules/class-module-delete-pending.php
 includes/modules/class-module-private-comments.php

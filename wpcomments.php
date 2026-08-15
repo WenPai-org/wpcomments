@@ -11,6 +11,7 @@
  * License:      GPL v2 or later
  * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
  * Network:      true
+ * Update URI:   https://updates.wenpai.net
  *
  * @package WPComments
  */
@@ -56,6 +57,7 @@ add_action(
 );
 
 require_once WPCOMMENTS_PATH . "includes/class-wpcomments-bootstrap.php";
+require_once WPCOMMENTS_PATH . "includes/class-wpcomments-updater.php";
 
 /**
  * Bootstrap the plugin
@@ -66,6 +68,9 @@ require_once WPCOMMENTS_PATH . "includes/class-wpcomments-bootstrap.php";
 function init(): void
 {
     \WPComments\WPComments_Bootstrap::get_instance()->init();
+    // Updater class is deliberately global (unqualified in this namespaced
+    // file) so it can be shared verbatim across WenPai plugins.
+    new \WPComments_Updater( plugin_basename( WPCOMMENTS_PLUGIN_FILE ), WPCOMMENTS_VERSION );
 }
 
 /**
