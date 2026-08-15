@@ -21,6 +21,15 @@ class Role_Badge_Module implements WPComments_Module_Interface {
     public function register(): void {
         $this->init();
     }
+
+    public function enqueue_frontend(): void {
+        wp_enqueue_style(
+            'wpcomments-role-badge',
+            WPCOMMENTS_URL . 'assets/comment-author-role-badge.css',
+            array(),
+            WPCOMMENTS_VERSION
+        );
+    }
     
     public function get_name(): string {
         return __('角色徽章', 'wpcomments');
@@ -43,19 +52,27 @@ class Role_Badge_Module implements WPComments_Module_Interface {
     
     public function load_admin_textdomain_in_frontend() {
         if (!is_admin()) {
-            load_textdomain('default', WP_LANG_DIR . '/admin-' . get_locale() . '.mo');
+            \load_textdomain('default', WP_LANG_DIR . '/admin-' . get_locale() . '.mo');
         }
     }
     
     public function get_comment_author_role($author, $comment_id, $comment) {
         global $wp_roles;
-        
+
+        $this->user_role = '';
         if ($wp_roles) {
             $reply_user_id = $comment->user_id;
-            if ($reply_user_id && $reply_user = new \WP_User($reply_user_id)) {
+            if ($reply_user_id) {
+                $reply_user = new \WP_User($reply_user_id);
                 if (isset($reply_user->roles[0])) {
-                    $user_role = translate_user_role($wp_roles->roles[$reply_user->roles[0]]['name']);
-                    $this->user_role = '<div class="comment-author-role-badge comment-author-role-badge--' . $reply_user->roles[0] . '">' . $user_role . '</div>';
+                    $role_slug = sanitize_html_class($reply_user->roles[0]);
+                    $role_data = isset($wp_roles->roles[$reply_user->roles[0]])
+                        ? $wp_roles->roles[$reply_user->roles[0]]
+                        : null;
+                    if ($role_data) {
+                        $user_role = translate_user_role($role_data['name']);
+                        $this->user_role = '<span class="comment-author-role-badge comment-author-role-badge--' . esc_attr($role_slug) . '">' . esc_html($user_role) . '</span>';
+                    }
                 }
             } else {
                 $this->user_role = '';

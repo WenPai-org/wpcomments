@@ -51,11 +51,17 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     }
     
     public function save_private_comment_meta($comment_id) {
-        if (isset($_POST['wp-comment-private']) && $_POST['wp-comment-private'] == '1') {
-            $commentarr = array('comment_ID' => $comment_id, 'comment_approved' => 0);
-            wp_update_comment($commentarr);
-            update_comment_meta($comment_id, 'wpcomments_private', 1);
+        $private = sanitize_key(comment_request_value('wp-comment-private'));
+        if ('1' !== $private) {
+            return;
         }
+        if (!verify_comment_context_nonce()) {
+            wp_die(esc_html__('Security check failed.', 'wpcomments'), '', array('response' => 403));
+        }
+
+        $commentarr = array('comment_ID' => $comment_id, 'comment_approved' => 0);
+        wp_update_comment($commentarr);
+        update_comment_meta($comment_id, 'wpcomments_private', 1);
     }
     
     public function is_private_comment($comment_id) {
@@ -101,7 +107,7 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     
     public function prevent_private_comment_approval($comment_id, $comment_status) {
         if (($comment_status === 'approve' || $comment_status === '1') && $this->is_private_comment($comment_id)) {
-            wp_set_comment_status($comment_id, 0);
+            wp_set_comment_status($comment_id, 'hold');
             if (wp_doing_ajax()) {
                 wp_send_json_error(__('Private comments cannot be made public', 'wpcomments'));
             }
@@ -111,10 +117,10 @@ class Private_Comments_Module implements WPComments_Module_Interface {
     public function modify_private_comment_actions($actions, $comment) {
         if ($this->is_private_comment($comment->comment_ID)) {
             if (isset($actions['approve'])) {
-                $actions['approve'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot be made public', 'wpcomments') . '">' . __('Approve') . '</span>';
+                $actions['approve'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot be made public', 'wpcomments') . '">' . esc_html__('Approve', 'wpcomments') . '</span>';
             }
             if (isset($actions['reply'])) {
-                $actions['reply'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot receive replies', 'wpcomments') . '">' . __('Reply') . '</span>';
+                $actions['reply'] = '<span class="wpcomments-disabled-action" title="' . esc_attr__('Private comments cannot receive replies', 'wpcomments') . '">' . esc_html__('Reply', 'wpcomments') . '</span>';
             }
         }
         return $actions;

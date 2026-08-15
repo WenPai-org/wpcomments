@@ -1,0 +1,15 @@
+/.git
+/.github
+/.gitignore
+/.distignore
+/docs
+/tests
+/node_modules
+/vendor
+/composer.json
+/composer.lock
+/package.json
+/package-lock.json
+/phpcs.xml.dist
+/phpcs.release.xml.dist
+/phpstan.neon.dist

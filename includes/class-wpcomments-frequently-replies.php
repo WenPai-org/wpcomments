@@ -28,11 +28,6 @@ class WPComments_Frequently_Replies {
         add_action('wp_ajax_wpcomments_auto_save_replies', array($this, 'auto_save_replies_ajax'));
         add_action('wp_ajax_closed-postboxes', array($this, 'handle_postbox_ajax'));
         add_action('wp_ajax_meta-box-order', array($this, 'handle_postbox_ajax'));
-        add_action('init', array($this, 'load_textdomain'));
-    }
-    
-    public function load_textdomain() {
-        load_plugin_textdomain('wpcomments', false, dirname(plugin_basename(WPCOMMENTS_PLUGIN_FILE)) . '/languages/');
     }
     
     public function add_admin_menu() {
@@ -106,7 +101,7 @@ class WPComments_Frequently_Replies {
         wp_enqueue_style(
             'wpcomments-frequently-replies-options',
             WPCOMMENTS_URL . 'assets/css/frequently-replies-options.css',
-            '',
+            array(),
             WPCOMMENTS_VERSION
         );
         
@@ -161,11 +156,11 @@ class WPComments_Frequently_Replies {
         ?>
         <div class="wrap wpcomments-settings wpcomments-frequently-replies-page" id="wpcomments-frequently-replies">
             <h1><?php echo esc_html__('常用回复列表', 'wpcomments'); ?>
-                <a href="<?php echo admin_url('options-general.php?page=wpcomments-settings&tab=features'); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('返回设置', 'wpcomments'); ?></a>
+                <a href="<?php echo esc_url(admin_url('options-general.php?page=wpcomments-settings&tab=features')); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e('返回设置', 'wpcomments'); ?></a>
             </h1>
             
             <div class="wpcomments-card">
-                <h2><?php _e('管理常用回复模板', 'wpcomments'); ?></h2>
+                <h2><?php esc_html_e('管理常用回复模板', 'wpcomments'); ?></h2>
                 <p class="wpcomments-section-desc"><?php echo esc_html__('在这里管理您的常用回复模板，可以在回复评论时快速插入预设内容。', 'wpcomments'); ?></p>
             
             <form id="wpcomments-frequently-replies-form" name="wpcomments-frequently-replies-form" method="post">
@@ -178,7 +173,7 @@ class WPComments_Frequently_Replies {
                                 <div class="postbox reply-item">
                                     <div class="postbox-header">
                                         <h2 class="hndle">
-                                            <span><?php echo esc_html__('回复模板', 'wpcomments'); ?> #<?php echo ($i + 1); ?></span>
+                                            <span><?php echo esc_html__('回复模板', 'wpcomments'); ?> #<?php echo esc_html((string) ($i + 1)); ?></span>
                                         </h2>
                                         <div class="handle-actions">
                                             <button type="button" class="handlediv" aria-expanded="true">
@@ -195,19 +190,19 @@ class WPComments_Frequently_Replies {
                                             <tbody>
                                                 <tr>
                                                     <th scope="row">
-                                                        <label for="replytitle-<?php echo esc_attr($i); ?>"><?php echo esc_html__('标题', 'wpcomments'); ?></label>
+                                                        <label for="replytitle-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html__('标题', 'wpcomments'); ?></label>
                                                     </th>
                                                     <td>
-                                                        <input type="text" name="replies[<?php echo esc_attr($i); ?>][title]" class="regular-text" id="replytitle-<?php echo esc_attr($i); ?>" value="<?php echo esc_attr($reply['title']); ?>" placeholder="<?php echo esc_attr__('输入回复模板的标题', 'wpcomments'); ?>">
+                                                        <input type="text" name="replies[<?php echo esc_attr((string) $i); ?>][title]" class="regular-text" id="replytitle-<?php echo esc_attr((string) $i); ?>" value="<?php echo esc_attr($reply['title']); ?>" placeholder="<?php echo esc_attr__('输入回复模板的标题', 'wpcomments'); ?>">
                                                         <p class="description"><?php echo esc_html__('为这个回复模板起一个便于识别的名称。', 'wpcomments'); ?></p>
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <th scope="row">
-                                                        <label for="replycontent-<?php echo esc_attr($i); ?>"><?php echo esc_html__('内容', 'wpcomments'); ?></label>
+                                                        <label for="replycontent-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html__('内容', 'wpcomments'); ?></label>
                                                     </th>
                                                     <td>
-                                                        <textarea name="replies[<?php echo esc_attr($i); ?>][content]" id="replycontent-<?php echo esc_attr($i); ?>" rows="5" cols="50" placeholder="<?php echo esc_attr__('输入回复内容...', 'wpcomments'); ?>"><?php echo esc_textarea($reply['content']); ?></textarea>
+                                                        <textarea name="replies[<?php echo esc_attr((string) $i); ?>][content]" id="replycontent-<?php echo esc_attr((string) $i); ?>" rows="5" cols="50" placeholder="<?php echo esc_attr__('输入回复内容...', 'wpcomments'); ?>"><?php echo esc_textarea($reply['content']); ?></textarea>
                                                         <p class="description"><?php echo esc_html__('输入回复的具体内容，支持HTML标签。', 'wpcomments'); ?></p>
                                                     </td>
                                                 </tr>
@@ -240,19 +235,19 @@ class WPComments_Frequently_Replies {
                                     <tbody>
                                         <tr>
                                             <th scope="row">
-                                                <label for="replytitle-<?php echo esc_attr($i); ?>"><?php echo esc_html__('标题', 'wpcomments'); ?></label>
+                                                <label for="replytitle-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html__('标题', 'wpcomments'); ?></label>
                                             </th>
                                             <td>
-                                                <input type="text" name="replies[<?php echo esc_attr($i); ?>][title]" class="regular-text" id="replytitle-<?php echo esc_attr($i); ?>" value="" placeholder="<?php echo esc_attr__('输入回复模板的标题', 'wpcomments'); ?>">
+                                                <input type="text" name="replies[<?php echo esc_attr((string) $i); ?>][title]" class="regular-text" id="replytitle-<?php echo esc_attr((string) $i); ?>" value="" placeholder="<?php echo esc_attr__('输入回复模板的标题', 'wpcomments'); ?>">
                                                 <p class="description"><?php echo esc_html__('为这个回复模板起一个便于识别的名称。', 'wpcomments'); ?></p>
                                             </td>
                                         </tr>
                                         <tr>
                                             <th scope="row">
-                                                <label for="replycontent-<?php echo esc_attr($i); ?>"><?php echo esc_html__('内容', 'wpcomments'); ?></label>
+                                                <label for="replycontent-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html__('内容', 'wpcomments'); ?></label>
                                             </th>
                                             <td>
-                                                <textarea name="replies[<?php echo esc_attr($i); ?>][content]" id="replycontent-<?php echo esc_attr($i); ?>" rows="5" cols="50" placeholder="<?php echo esc_attr__('输入回复内容...', 'wpcomments'); ?>"></textarea>
+                                                <textarea name="replies[<?php echo esc_attr((string) $i); ?>][content]" id="replycontent-<?php echo esc_attr((string) $i); ?>" rows="5" cols="50" placeholder="<?php echo esc_attr__('输入回复内容...', 'wpcomments'); ?>"></textarea>
                                                 <p class="description"><?php echo esc_html__('输入回复的具体内容，支持HTML标签。', 'wpcomments'); ?></p>
                                             </td>
                                         </tr>
@@ -303,7 +298,18 @@ class WPComments_Frequently_Replies {
             );
         }
         
-        $replies = $_POST['replies'];
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every reply is sanitized field-by-field immediately below.
+        $posted_replies = isset($_POST['replies']) && is_array($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
+        $replies = array_map(
+            function ($reply) {
+                $reply = is_array($reply) ? $reply : array();
+                return array(
+                    'title' => sanitize_text_field($reply['title'] ?? ''),
+                    'content' => $this->sanitize_reply($reply['content'] ?? ''),
+                );
+            },
+            $posted_replies
+        );
         $sanitized_replies = array();
         $i = 0;
         
@@ -315,8 +321,8 @@ class WPComments_Frequently_Replies {
                 
                 $sanitized_replies[] = array(
                     'slug' => empty($reply['title']) ? "reply-title-$i" : sanitize_title($reply['title']),
-                    'title' => empty($reply['title']) ? "回复 #$i" : sanitize_text_field($reply['title']),
-                    'content' => $this->sanitize_reply($reply['content']),
+                    'title' => empty($reply['title']) ? "回复 #$i" : $reply['title'],
+                    'content' => $reply['content'],
                 );
                 
                 $i++;
@@ -382,10 +388,6 @@ class WPComments_Frequently_Replies {
         return wp_kses($reply_content, $allowed_tags);
     }
     
-    private function script_debug_activated() {
-        return defined('SCRIPT_DEBUG') && SCRIPT_DEBUG;
-    }
-    
     public function auto_save_replies_ajax() {
         if (!current_user_can('moderate_comments')) {
             wp_send_json_error(
@@ -398,19 +400,27 @@ class WPComments_Frequently_Replies {
             );
         }
         
-        if (!wp_verify_nonce($_POST['nonce'], 'wpcomments_frequently_replies_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'wpcomments_frequently_replies_nonce')) {
             wp_send_json_error(array('message' => esc_html__('安全验证失败', 'wpcomments')));
         }
         
-        $replies = isset($_POST['replies']) ? $_POST['replies'] : array();
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- every reply is sanitized field-by-field immediately below.
+        $posted_replies = isset($_POST['replies']) && is_array($_POST['replies']) ? (array) wp_unslash($_POST['replies']) : array();
+        $replies = array_map(
+            function ($reply) {
+                $reply = is_array($reply) ? $reply : array();
+                return array(
+                    'title' => sanitize_text_field($reply['title'] ?? ''),
+                    'content' => $this->sanitize_reply($reply['content'] ?? ''),
+                );
+            },
+            $posted_replies
+        );
         $sanitized_replies = array();
         
         foreach ($replies as $reply) {
             if (!empty($reply['title']) || !empty($reply['content'])) {
-                $sanitized_replies[] = array(
-                    'title' => sanitize_text_field($reply['title']),
-                    'content' => $this->sanitize_reply($reply['content']),
-                );
+                $sanitized_replies[] = $reply;
             }
         }
         
@@ -424,22 +434,24 @@ class WPComments_Frequently_Replies {
 
     public function handle_postbox_ajax() {
         if (!current_user_can('manage_options')) {
-            wp_die(-1);
+            wp_die('-1');
         }
 
         check_ajax_referer('meta-box-order');
         
-        $page = isset($_POST['page']) ? $_POST['page'] : '';
+        $page = isset($_POST['page']) ? sanitize_key(wp_unslash($_POST['page'])) : '';
         
         if ($page === 'wpcomments-frequently-replies') {
             if (isset($_POST['closed'])) {
-                update_user_meta(get_current_user_id(), 'closedpostboxes_' . $page, explode(',', $_POST['closed']));
+                $closed = array_map('sanitize_key', explode(',', sanitize_text_field(wp_unslash($_POST['closed']))));
+                update_user_meta(get_current_user_id(), 'closedpostboxes_' . $page, $closed);
             }
             if (isset($_POST['order'])) {
-                update_user_meta(get_current_user_id(), 'meta-box-order_' . $page, $_POST['order']);
+                $order = array_map('sanitize_text_field', (array) wp_unslash($_POST['order']));
+                update_user_meta(get_current_user_id(), 'meta-box-order_' . $page, $order);
             }
         }
         
-        wp_die(1);
+        wp_die('1');
     }
 }

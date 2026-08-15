@@ -55,7 +55,7 @@ class Gongan_Beian_Module implements WPComments_Module_Interface {
      * 使用与原插件一致的键名，以便兼容历史数据：yjwgaba_ipport
      */
     public function record_comment_port($comment_ID, $commentdata) {
-        $ipport = isset($_SERVER['REMOTE_PORT']) ? sanitize_text_field($_SERVER['REMOTE_PORT']) : '';
+        $ipport = isset($_SERVER['REMOTE_PORT']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_PORT'])) : '';
         if ($ipport !== '') {
             update_comment_meta($comment_ID, 'yjwgaba_ipport', $ipport);
         }
@@ -94,7 +94,7 @@ class Gongan_Beian_Module implements WPComments_Module_Interface {
         $port_display = esc_html($port);
         $time_display = esc_html($time);
 
-        echo $ip_display . ' : ' . $port_display . '<br><br>' . $time_display;
+        echo esc_html($ip_display) . ' : ' . esc_html($port_display) . '<br><br>' . esc_html($time_display);
     }
 
     /**

@@ -38,19 +38,7 @@ interface WPComments_Module_Interface {
      */
     public function register(): void;
 
-    /**
-     * Get module name for display
-     *
-     * @return string Module display name
-     */
-    public function get_name(): string;
-
-    /**
-     * Get module description
-     *
-     * @return string Module description
-     */
-    public function get_description(): string;
+    // Display metadata is optional. The manager falls back to the module ID.
 }
 
 /**
@@ -98,7 +86,7 @@ class WPComments_Module_Manager {
         
         if (isset($this->modules[$module_id])) {
             throw new \InvalidArgumentException(
-                sprintf('Module with ID "%s" is already registered', $module_id)
+                sprintf('Module with ID "%s" is already registered', esc_html($module_id))
             );
         }
 
@@ -128,13 +116,7 @@ class WPComments_Module_Manager {
                     $this->loaded_modules[$module->id()] = $module;
                 }
             } catch (\Exception $e) {
-                error_log(
-                    sprintf(
-                        'WPComments: Failed to load module "%s": %s',
-                        $module->id(),
-                        $e->getMessage()
-                    )
-                );
+                do_action('wpcomments_module_error', 'register', $module->id(), $e);
             }
         }
 
@@ -195,13 +177,7 @@ class WPComments_Module_Manager {
                     $module->enqueue_frontend();
                 }
             } catch (\Exception $e) {
-                error_log(
-                    sprintf(
-                        'WPComments: Failed to enqueue frontend assets for module "%s": %s',
-                        $module->id(),
-                        $e->getMessage()
-                    )
-                );
+                do_action('wpcomments_module_error', 'enqueue_frontend', $module->id(), $e);
             }
         }
     }
@@ -219,13 +195,7 @@ class WPComments_Module_Manager {
                     $module->enqueue_admin($hook);
                 }
             } catch (\Exception $e) {
-                error_log(
-                    sprintf(
-                        'WPComments: Failed to enqueue admin assets for module "%s": %s',
-                        $module->id(),
-                        $e->getMessage()
-                    )
-                );
+                do_action('wpcomments_module_error', 'enqueue_admin', $module->id(), $e);
             }
         }
     }

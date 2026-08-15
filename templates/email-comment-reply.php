@@ -9,6 +9,18 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/** @var string $subject */
+/** @var string $post_title */
+/** @var string $post_url */
+/** @var string $original_comment_date */
+/** @var string $original_comment_content */
+/** @var string $reply_author */
+/** @var string $reply_date */
+/** @var string $reply_content */
+/** @var int $reply_id */
+/** @var string $reply_url */
+/** @var string $unsubscribe_url */
 ?>
 <!DOCTYPE html>
 <html>
@@ -127,7 +139,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <strong>发表时间：</strong> <?php echo esc_html($original_comment_date); ?>
             </div>
             <div class="comment-content">
-                <?php echo wpautop(esc_html($original_comment_content)); ?>
+                <?php echo wp_kses_post(wpautop(esc_html($original_comment_content))); ?>
             </div>
         </div>
 
@@ -141,12 +153,12 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <?php endif; ?>
             </div>
             <div class="comment-content">
-                <?php echo wpautop(esc_html($reply_content)); ?>
+                <?php echo wp_kses_post(wpautop(esc_html($reply_content))); ?>
             </div>
         </div>
 
         <div class="actions">
-            <a href="<?php echo esc_url($post_url); ?>#comment-<?php echo esc_attr($reply_id); ?>" class="btn btn-primary">查看完整对话</a>
+            <a href="<?php echo esc_url($post_url); ?>#comment-<?php echo esc_attr((string) $reply_id); ?>" class="btn btn-primary">查看完整对话</a>
             <a href="<?php echo esc_url($reply_url); ?>" class="btn btn-secondary">回复此评论</a>
         </div>
 

@@ -4,8 +4,20 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     exit;
 }
 
+// Preserve user data unless an administrator explicitly opted in before uninstall.
+$wpcomments_delete_data = defined( 'WPCOMMENTS_DELETE_DATA_ON_UNINSTALL' )
+    && WPCOMMENTS_DELETE_DATA_ON_UNINSTALL;
+if ( is_multisite() ) {
+    $wpcomments_delete_data = $wpcomments_delete_data || (bool) get_site_option( 'wpcomments_delete_data_on_uninstall', false );
+} else {
+    $wpcomments_delete_data = $wpcomments_delete_data || (bool) get_option( 'wpcomments_delete_data_on_uninstall', false );
+}
+if ( ! $wpcomments_delete_data ) {
+    return;
+}
+
 // Known option keys (site-level)
-$option_keys = array(
+$wpcomments_option_keys = array(
     // Core toggles
     'wpcomments_disable_comments',
     'wpcomments_enable_role_badge',
@@ -24,7 +36,18 @@ $option_keys = array(
     'wpcomments_private_comment_options',
     'wpcomments_comment_limiter_options',
     'wpcomments_report_threshold',
+    'wpcomments_report_logged_in_only',
+    'wpcomments_report_min_interval',
+    'wpcomments_report_retention_days',
+    'wpcomments_report_privacy_notice',
     'wpcomments_frequently_replies',
+    'wpcomments_character_limiter_options',
+    'wpcomments_moderation_info_position',
+    'wpcomments_moderation_info_show_author',
+    'wpcomments_moderation_show_last_modified',
+    'wpcomments_moderation_show_edit_author',
+    'wpcomments_db_version',
+    'wpcomments_delete_data_on_uninstall',
 
     // Email notification settings
     'wpcomments_email_admin_notification',
@@ -39,7 +62,7 @@ $option_keys = array(
 );
 
 // Network-level keys (site_option)
-$network_keys = array(
+$wpcomments_network_keys = array(
     'wpcomments_network_enabled',
     'wpcomments_network_enforce',
     'wpcomments_network_controlled_options',
@@ -55,6 +78,23 @@ $network_keys = array(
     'wpcomments_enable_moderation_info',
     'wpcomments_enable_sticky_comments',
     'wpcomments_enable_email_notification',
+    'wpcomments_enable_private_comments',
+    'wpcomments_enable_comment_limiter',
+    'wpcomments_enable_report_comments',
+    'wpcomments_report_logged_in_only',
+    'wpcomments_report_min_interval',
+    'wpcomments_report_retention_days',
+    'wpcomments_report_privacy_notice',
+    'wpcomments_enable_gongan_beian',
+    'wpcomments_delete_data_on_uninstall',
+);
+
+$wpcomments_comment_meta_keys = array(
+    'wpcomments_private',
+    'wpcomments_sticky',
+    'wpcomments_subscribe_to_comment',
+    'comodinfo_comment_revisions',
+    'yjwgaba_ipport',
 );
 
 /**
@@ -63,29 +103,40 @@ $network_keys = array(
 function wpcomments_drop_reports_table_for_blog() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'wpcomments_reports';
-    $wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+    if (1 !== preg_match('/^[A-Za-z0-9_]+$/D', $table_name)) {
+        return;
+    }
+    $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- explicit opt-in uninstall with a validated identifier; writes are not cached.
 }
 
 if ( is_multisite() ) {
     // Delete network-level options
-    foreach ( $network_keys as $key ) {
-        delete_site_option( $key );
+    foreach ( $wpcomments_network_keys as $wpcomments_key ) {
+        delete_site_option( $wpcomments_key );
     }
 
     // Iterate all sites and delete site-level options and tables
-    $sites = get_sites( array( 'fields' => 'ids' ) );
-    foreach ( $sites as $site_id ) {
-        switch_to_blog( (int) $site_id );
-        foreach ( $option_keys as $key ) {
-            delete_option( $key );
+    $wpcomments_sites = get_sites( array( 'fields' => 'ids' ) );
+    foreach ( $wpcomments_sites as $wpcomments_site_id ) {
+        switch_to_blog( (int) $wpcomments_site_id );
+        foreach ( $wpcomments_option_keys as $wpcomments_key ) {
+            delete_option( $wpcomments_key );
         }
+        foreach ( $wpcomments_comment_meta_keys as $wpcomments_key ) {
+            delete_metadata( 'comment', 0, $wpcomments_key, '', true );
+        }
+        wp_clear_scheduled_hook( 'wpcomments_cleanup_reports' );
         wpcomments_drop_reports_table_for_blog();
         restore_current_blog();
     }
 } else {
     // Single site: delete options and drop reports table
-    foreach ( $option_keys as $key ) {
-        delete_option( $key );
+    foreach ( $wpcomments_option_keys as $wpcomments_key ) {
+        delete_option( $wpcomments_key );
     }
+    foreach ( $wpcomments_comment_meta_keys as $wpcomments_key ) {
+        delete_metadata( 'comment', 0, $wpcomments_key, '', true );
+    }
+    wp_clear_scheduled_hook( 'wpcomments_cleanup_reports' );
     wpcomments_drop_reports_table_for_blog();
 }

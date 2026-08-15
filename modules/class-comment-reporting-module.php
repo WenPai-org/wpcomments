@@ -21,7 +21,7 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     }
     
     public function get_name(): string {
-        return __('评论举报', 'wpcomments');
+        return esc_html__('评论举报', 'wpcomments');
     }
     
     public function get_description(): string {
@@ -38,17 +38,15 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     
     public function enqueue_reporting_scripts() {
         if (is_singular() && comments_open()) {
-            wp_enqueue_script('wpcomments-reporting', WPCOMMENTS_URL . 'assets/js/reporting.js', array('jquery'), WPCOMMENTS_VERSION, true);
+            wp_enqueue_script('wpcomments-reporting', WPCOMMENTS_URL . 'assets/js/comment-report.js', array('jquery'), WPCOMMENTS_VERSION, true);
             
-            wp_localize_script('wpcomments-reporting', 'wpcomments_reporting', array(
-                'ajax_url' => admin_url('admin-ajax.php'),
+            wp_localize_script('wpcomments-reporting', 'wpcommentsReport', array(
+                'ajaxurl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('wpcomments_report_comment'),
-                'report_text' => __('举报', 'wpcomments'),
-                'reported_text' => __('已举报', 'wpcomments'),
-                'confirm_text' => __('确定要举报这条评论吗？', 'wpcomments'),
-                'success_text' => __('举报已提交，感谢您的反馈', 'wpcomments'),
-                'error_text' => __('举报失败，请稍后重试', 'wpcomments'),
-                'already_reported_text' => __('您已经举报过这条评论', 'wpcomments'),
+                'reportText' => __('举报', 'wpcomments'),
+                'thankYouMessage' => __('举报已提交，感谢您的反馈', 'wpcomments'),
+                'errorMessage' => __('举报失败，请稍后重试', 'wpcomments'),
+                'alreadyReportedMessage' => __('您已经举报过这条评论', 'wpcomments'),
             ));
         }
     }
@@ -56,8 +54,11 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     public function ajax_report_comment() {
         check_ajax_referer('wpcomments_report_comment', 'nonce');
         
-        $comment_id = intval($_POST['comment_id']);
-        $reason = sanitize_text_field($_POST['reason']);
+        $comment_id = isset($_POST['comment_id']) ? absint($_POST['comment_id']) : 0;
+        $reason = isset($_POST['reason'])
+            ? sanitize_text_field(wp_unslash($_POST['reason']))
+            : 'user_report';
+        $reason = substr($reason, 0, 255);
         
         if (!$comment_id) {
             wp_send_json_error(__('无效的评论ID', 'wpcomments'));
@@ -67,21 +68,38 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
         if (!$comment) {
             wp_send_json_error(__('评论不存在', 'wpcomments'));
         }
+        if ('1' !== (string) $comment->comment_approved) {
+            wp_send_json_error(__('该评论不可举报', 'wpcomments'), 403);
+        }
+
+        $logged_in_only = $this->get_effective_setting('wpcomments_report_logged_in_only', false);
+        if ($logged_in_only && !is_user_logged_in()) {
+            wp_send_json_error(__('请登录后举报评论', 'wpcomments'), 403);
+        }
         
         $user_ip = $this->get_user_ip_hash();
         
         if ($this->has_user_reported($comment_id, $user_ip)) {
             wp_send_json_error(__('您已经举报过这条评论', 'wpcomments'));
         }
+
+        if ($this->has_recent_report($user_ip)) {
+            wp_send_json_error(__('举报过于频繁，请稍后再试', 'wpcomments'), 429);
+        }
         
-        $this->save_report($comment_id, $user_ip, $reason);
+        if (!$this->save_report($comment_id, $user_ip, $reason)) {
+            wp_send_json_error(__('举报保存失败，请稍后再试', 'wpcomments'), 500);
+        }
         
         wp_send_json_success(__('举报已提交，感谢您的反馈', 'wpcomments'));
     }
     
     public function add_report_link($content, $comment) {
+        if (!$comment instanceof \WP_Comment) {
+            return $content;
+        }
         if (!is_admin() && !current_user_can('moderate_comments')) {
-            $report_link = '<a href="#" class="wpcomments-report-link" data-comment-id="' . $comment->comment_ID . '">' . __('举报', 'wpcomments') . '</a>';
+            $report_link = '<button type="button" class="wpcomments-report-btn" data-comment-id="' . esc_attr($comment->comment_ID) . '">' . esc_html__('举报', 'wpcomments') . '</button>';
             $content .= '<div class="wpcomments-report-container">' . $report_link . '</div>';
         }
         return $content;
@@ -89,8 +107,8 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     
     public function add_reports_admin_page() {
         add_comments_page(
-            __('评论举报', 'wpcomments'),
-            __('评论举报', 'wpcomments'),
+            esc_html__('评论举报', 'wpcomments'),
+            esc_html__('评论举报', 'wpcomments'),
             'moderate_comments',
             'wpcomments-reports',
             array($this, 'render_reports_page')
@@ -100,36 +118,45 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     public function render_reports_page() {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
-        $reports = $wpdb->get_results("
-            SELECT r.*, c.comment_content, c.comment_author, c.comment_date 
-            FROM {$table_name} r 
-            LEFT JOIN {$wpdb->comments} c ON r.comment_id = c.comment_ID 
-            ORDER BY r.report_date DESC
-        ");
+        $table_name = reports_table_name(true);
+        $comments_table = $wpdb->comments;
+        if (1 !== preg_match('/^[A-Za-z0-9_]+$/D', $comments_table)) {
+            wp_die(esc_html__('Invalid WordPress database prefix.', 'wpcomments'));
+        }
+        $comments_table = '`' . $comments_table . '`';
+        $reports = wp_cache_get('admin_reports', 'wpcomments');
+        if (false === $reports) {
+            $sql = 'SELECT r.*, c.comment_content, c.comment_author, c.comment_date '
+                . 'FROM ' . $table_name . ' r '
+                . 'LEFT JOIN ' . $comments_table . ' c ON r.comment_id = c.comment_ID '
+                . 'ORDER BY r.report_date DESC LIMIT 500';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- identifiers are validated above; result is cached below.
+            $reports = $wpdb->get_results($sql);
+            wp_cache_set('admin_reports', $reports, 'wpcomments', MINUTE_IN_SECONDS);
+        }
         
         echo '<div class="wrap">';
-        echo '<h1>' . __('评论举报', 'wpcomments') . '</h1>';
+        echo '<h1>' . esc_html__('评论举报', 'wpcomments') . '</h1>';
         
         if (empty($reports)) {
-            echo '<p>' . __('暂无举报记录', 'wpcomments') . '</p>';
+            echo '<p>' . esc_html__('暂无举报记录', 'wpcomments') . '</p>';
         } else {
             echo '<table class="wp-list-table widefat fixed striped">';
             echo '<thead><tr>';
-            echo '<th>' . __('评论内容', 'wpcomments') . '</th>';
-            echo '<th>' . __('评论作者', 'wpcomments') . '</th>';
-            echo '<th>' . __('举报原因', 'wpcomments') . '</th>';
-            echo '<th>' . __('举报时间', 'wpcomments') . '</th>';
-            echo '<th>' . __('操作', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('评论内容', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('评论作者', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('举报原因', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('举报时间', 'wpcomments') . '</th>';
+            echo '<th>' . esc_html__('操作', 'wpcomments') . '</th>';
             echo '</tr></thead><tbody>';
             
             foreach ($reports as $report) {
                 echo '<tr>';
-                echo '<td>' . wp_trim_words($report->comment_content, 20) . '</td>';
+                echo '<td>' . esc_html(wp_trim_words((string) $report->comment_content, 20)) . '</td>';
                 echo '<td>' . esc_html($report->comment_author) . '</td>';
                 echo '<td>' . esc_html($report->reason) . '</td>';
-                echo '<td>' . $report->report_date . '</td>';
-                echo '<td><a href="' . admin_url('comment.php?action=editcomment&c=' . $report->comment_id) . '">' . __('查看评论', 'wpcomments') . '</a></td>';
+                echo '<td>' . esc_html($report->report_date) . '</td>';
+                echo '<td><a href="' . esc_url(admin_url('comment.php?action=editcomment&c=' . absint($report->comment_id))) . '">' . esc_html__('查看评论', 'wpcomments') . '</a></td>';
                 echo '</tr>';
             }
             
@@ -140,39 +167,74 @@ class Comment_Reporting_Module implements WPComments_Module_Interface {
     }
     
     private function get_user_ip_hash() {
-        $ip = $_SERVER['REMOTE_ADDR'];
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        }
+        $ip = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+            : '';
+        $ip = (string) apply_filters('wpcomments_report_client_ip', $ip);
         return hash('sha256', $ip . NONCE_SALT);
     }
     
     private function has_user_reported($comment_id, $user_ip_hash) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
+        $table_name = reports_table_name(true);
         
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- anti-abuse decisions must use live custom-table data.
         $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} WHERE comment_id = %d AND user_ip_hash = %s",
+            "SELECT 1 FROM {$table_name} WHERE comment_id = %d AND user_ip_hash = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; WP 5.9 has no %i placeholder.
             $comment_id,
             $user_ip_hash
-        ));
+        )); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- anti-abuse decisions must not use stale cache data.
         
         return $count > 0;
     }
     
     private function save_report($comment_id, $user_ip_hash, $reason) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'wpcomments_reports';
+        $table_name = reports_table_name();
         
-        $wpdb->insert(
+        $now = current_time('mysql');
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- custom-table write through wpdb::insert; writes are not cached.
+        $saved = false !== $wpdb->insert(
             $table_name,
             array(
                 'comment_id' => $comment_id,
+                'user_id' => get_current_user_id(),
+                'user_ip' => $user_ip_hash,
                 'user_ip_hash' => $user_ip_hash,
                 'reason' => $reason,
-                'report_date' => current_time('mysql')
+                'report_time' => $now,
+                'report_date' => $now,
             ),
-            array('%d', '%s', '%s', '%s')
+            array('%d', '%d', '%s', '%s', '%s', '%s', '%s')
         );
+        if ($saved) {
+            wp_cache_delete('admin_reports', 'wpcomments');
+        }
+        return $saved;
+    }
+
+    private function has_recent_report($user_ip_hash) {
+        global $wpdb;
+        $minutes = (int) $this->get_effective_setting('wpcomments_report_min_interval', 10);
+        $minutes = max(0, min(1440, $minutes));
+        if (0 === $minutes) {
+            return false;
+        }
+
+        $table_name = reports_table_name(true);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- rate-limit decisions must use live custom-table data.
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT 1 FROM {$table_name} WHERE user_ip_hash = %s AND report_date >= ( NOW() - INTERVAL %d MINUTE ) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- validated identifier; WP 5.9 has no %i placeholder.
+            $user_ip_hash,
+            $minutes
+        ));
+        return (int) $count > 0;
+    }
+
+    private function get_effective_setting($name, $default) {
+        if (class_exists('WPComments\\WPComments_Network_Settings')) {
+            return WPComments_Network_Settings::get_effective_setting($name, $default);
+        }
+        return get_option($name, $default);
     }
 }

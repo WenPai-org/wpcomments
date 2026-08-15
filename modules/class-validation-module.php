@@ -30,7 +30,7 @@ class Validation_Module implements WPComments_Module_Interface {
     
     private function init(): void {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_validation_scripts'));
-        add_action('pre_comment_on_post', array($this, 'validate_comment_submission'));
+        add_filter('preprocess_comment', array($this, 'validate_comment_submission'));
     }
     
     public function enqueue_validation_scripts() {
@@ -46,21 +46,26 @@ class Validation_Module implements WPComments_Module_Interface {
         }
     }
     
-    public function validate_comment_submission($post_id) {
-        if (empty($_POST['comment'])) {
-            wp_die(__('评论内容不能为空', 'wpcomments'));
+    public function validate_comment_submission($commentdata) {
+        $comment = trim(wp_kses_post((string) ($commentdata['comment_content'] ?? '')));
+        $author = trim(sanitize_text_field((string) ($commentdata['comment_author'] ?? '')));
+        $email = trim(sanitize_email((string) ($commentdata['comment_author_email'] ?? '')));
+        if ('' === $comment) {
+            wp_die(esc_html__('评论内容不能为空', 'wpcomments'));
         }
         
-        if (empty($_POST['author']) && get_option('require_name_email')) {
-            wp_die(__('请输入您的姓名', 'wpcomments'));
+        if ('' === $author && get_option('require_name_email')) {
+            wp_die(esc_html__('请输入您的姓名', 'wpcomments'));
         }
         
-        if (empty($_POST['email']) && get_option('require_name_email')) {
-            wp_die(__('请输入您的邮箱地址', 'wpcomments'));
+        if ('' === $email && get_option('require_name_email')) {
+            wp_die(esc_html__('请输入您的邮箱地址', 'wpcomments'));
         }
         
-        if (!empty($_POST['email']) && !is_email($_POST['email'])) {
-            wp_die(__('请输入有效的邮箱地址', 'wpcomments'));
+        if ('' !== $email && !is_email($email)) {
+            wp_die(esc_html__('请输入有效的邮箱地址', 'wpcomments'));
         }
+
+        return $commentdata;
     }
 }

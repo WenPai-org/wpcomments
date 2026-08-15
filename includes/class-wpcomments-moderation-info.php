@@ -51,18 +51,25 @@ class WPComments_Moderation_Info {
     public function get_last_update_from_comment_revisions($comment_revisions, $show_author = 1)
     {
         $last_comment_data = end($comment_revisions);
-        $modified_by_user = get_userdata($last_comment_data['author_id']);
-        $modified_by = $modified_by_user->display_name;
+        if (!is_array($last_comment_data) || empty($last_comment_data['modified_date'])) {
+            return '';
+        }
+        $modified_by_user = get_userdata((int) ($last_comment_data['author_id'] ?? 0));
+        $modified_by = $modified_by_user ? $modified_by_user->display_name : __('未知用户', 'wpcomments');
         
         if (1 === $show_author) {
+            /* translators: 1: edit date, 2: edit time, 3: editor display name. */
             $modified = sprintf(
+                /* translators: 1: edit date, 2: edit time, 3: editor display name. */
                 esc_html__('Edited on %1$s at %2$s, by %3$s', 'wpcomments'),
                 mysql2date(get_option('date_format'), $last_comment_data['modified_date']),
                 mysql2date(get_option('time_format'), $last_comment_data['modified_date']),
                 $modified_by
             );
         } else {
+            /* translators: 1: edit date, 2: edit time. */
             $modified = sprintf(
+                /* translators: 1: edit date, 2: edit time. */
                 esc_html__('Edited on %1$s at %2$s', 'wpcomments'),
                 mysql2date(get_option('date_format'), $last_comment_data['modified_date']),
                 mysql2date(get_option('time_format'), $last_comment_data['modified_date'])
@@ -77,7 +84,9 @@ class WPComments_Moderation_Info {
             return;
         }
 
+        /* translators: 1: comment date, 2: comment time. */
         $submitted = sprintf(
+            /* translators: 1: comment date, 2: comment time. */
             esc_html__('%1$s at %2$s', 'wpcomments'),
             get_comment_date(get_option('date_format'), $comment_ID),
             get_comment_date(get_option('time_format'), $comment_ID)
@@ -108,7 +117,7 @@ class WPComments_Moderation_Info {
         $date = current_time('mysql');
         $date_gmt = get_gmt_from_date($date);
         $author_id = get_current_user_id();
-        $content = $data['comment_content'];
+        $content = isset($data['comment_content']) ? (string) $data['comment_content'] : '';
 
         $new_data = array(
             'modified_date' => $date,
@@ -117,14 +126,21 @@ class WPComments_Moderation_Info {
             'content' => $content,
         );
 
-        $comment_revisions = get_comment_meta($comment_ID, 'comodinfo_comment_revisions');
+        $comment_revisions = get_comment_meta($comment_ID, 'comodinfo_comment_revisions', true);
+        if (!is_array($comment_revisions)) {
+            $comment_revisions = array();
+        }
         $comment_revisions[] = $new_data;
+        $comment_revisions = array_slice($comment_revisions, -20);
         update_comment_meta($comment_ID, 'comodinfo_comment_revisions', $comment_revisions);
     }
 
     public function add_last_modified_date($comment_text, $comment)
     {
-        $comment_ID = $comment->comment_ID;
+        if (!$comment instanceof \WP_Comment) {
+            return $comment_text;
+        }
+        $comment_ID = (int) $comment->comment_ID;
         $comment_revisions = get_comment_meta($comment_ID, 'comodinfo_comment_revisions', true);
 
         if (!empty($comment_revisions)) {

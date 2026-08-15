@@ -1,30 +1,30 @@
-# WPComments
+# WenPai Comments
 Contributors: wenpai
 Tags: comments
 Requires at least: 5.9
-Tested up to: 6.7
+Tested up to: 7.0
 Stable tag: 2.0.0
 License: GPLv2 or later
 Requires PHP: 7.4
 
-WPComments everywhere in WordPress.
+Modular comment controls and moderation tools for WordPress.
 
 ## Description
 
-WPComments is a comprehensive WordPress plugin that completely disables comments functionality across your entire WordPress site. It provides a clean and efficient way to remove all comment-related features without affecting your site's performance.
+WPComments can either disable the WordPress comment system or selectively add comment-management features. All optional enhancements are off until an administrator enables them.
 
 **Key Features:**
 
-* Complete comment system disable
-* REST API comment endpoint protection
-* XML-RPC comment method blocking
-* Dashboard comment widget removal
-* Block editor comment blocks removal
-* Multisite network support with site-level control
-* Internationalization ready
-* No configuration required - works out of the box
+* Complete comment disable mode, including REST API and XML-RPC comment entry points
+* Private and sticky comments
+* Comment validation and character limits
+* Comment reports with hashed client identifiers, throttling, and retention cleanup
+* Reply subscription and administrator notification email
+* Frequently used moderation replies and edit history
+* Comment-author role badges and optional website-field removal
+* Multisite network controls with per-site storage
 
-**What it does:**
+**Disable mode:**
 
 * Stop comments and pingbacks on all existing and future content.
 * Remove "Discussion" from Settings in the admin menu.
@@ -35,7 +35,7 @@ WPComments is a comprehensive WordPress plugin that completely disables comments
 * Unregister all core comment blocks in the editor.
 * Remove "Manage Comments" from My Sites on multisite. (If network activated.)
 
-No configuration necessary (or available).
+Use Settings > WPComments to enable only the features required for the site. On multisite, network administrators can control or enforce selected settings.
 
 If you find something we missed, [please let us know](https://github.com/WenPai-org/wpcomments)!
 
@@ -43,7 +43,7 @@ If you find something we missed, [please let us know](https://github.com/WenPai-
 
 1. Upload the plugin files to the `/wp-content/plugins/wpcomments` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress
-3. The plugin works automatically - no configuration needed!
+3. Open Settings > WPComments and enable the required features. To remove comments entirely, enable Disable Comments.
 
 For multisite installations, network administrators can control comment settings at the site level through Network Admin > Settings > General.
 
@@ -51,7 +51,7 @@ For multisite installations, network administrators can control comment settings
 
 ### Does this plugin require any configuration?
 
-No! The plugin works automatically once activated. For multisite installations, network administrators have additional control options.
+Optional features are disabled by default. Enable only the features needed by the site. Multisite network administrators can control selected settings across sites.
 
 ### Will this affect my existing comments?
 
@@ -62,6 +62,15 @@ No, existing comments remain in your database. The plugin simply prevents new co
 Yes! Network administrators can control comment settings for individual sites through the network admin interface.
 
 ## Changelog
+
+### Unreleased
+
+* Align feature loading with saved site and network settings.
+* Repair the report table schema, frontend report action, throttling, and retention cleanup.
+* Repair character limiter assets and settings, role badges, and administrator email notifications.
+* Add storage initialization for new multisite sites and clear scheduled cleanup on deactivation.
+* Preserve plugin data on uninstall unless deletion is explicitly enabled.
+* Harden request validation, output escaping, and large subscription-list queries.
 
 ### 2.0.0
 
