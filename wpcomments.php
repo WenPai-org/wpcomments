@@ -3,9 +3,9 @@
  * Plugin Name:  WenPai Comments
  * Description:  Modular comment controls and moderation tools for WordPress.
  * Version:      2.0.0
- * Plugin URI:   https://wenpai.org/plugins/wpcomments/
+ * Plugin URI:   https://wpcy.com/wpcomments
  * Author:       WPComments.com
- * Author URI:   https://wpcomments.com
+ * Author URI:   https://wpcy.com/
  * Text Domain:  wpcomments
  * Requires PHP: 7.4
  * License:      GPL v2 or later
